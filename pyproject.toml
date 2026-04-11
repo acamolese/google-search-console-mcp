@@ -1,0 +1,17 @@
+[project]
+name = "google-workspace-mcp"
+version = "1.0.0"
+description = "MCP server for Google Ads, Google Analytics 4, and Google Search Console"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "mcp>=1.0.0",
+    "google-ads>=29.0.0",
+    "google-analytics-data>=0.18.0",
+    "google-auth>=2.0.0",
+    "google-auth-oauthlib>=1.0.0",
+]
+
+[project.scripts]
+google-workspace-mcp = "server:mcp.run"
