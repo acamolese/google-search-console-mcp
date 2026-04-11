@@ -1,8 +1,8 @@
-# Google Workspace MCP Server
+# Google Search Console MCP
 
-MCP (Model Context Protocol) server that provides tools for **Google Ads**, **Google Analytics 4**, and **Google Search Console**.
+MCP (Model Context Protocol) server for **Google Search Console**, **Google Ads**, and **Google Analytics 4**.
 
-Any MCP-compatible client can use this server to query advertising data, analytics reports, and search performance directly from Google APIs.
+Query search performance, advertising data, and analytics reports directly from Google APIs through any MCP-compatible client.
 
 ## Tools
 
@@ -43,8 +43,8 @@ Any MCP-compatible client can use this server to query advertising data, analyti
 ### 1. Clone and install dependencies
 
 ```bash
-git clone https://github.com/acamolese/google-workspace-mcp.git
-cd google-workspace-mcp
+git clone https://github.com/acamolese/google-search-console-mcp.git
+cd google-search-console-mcp
 
 python -m venv .venv
 source .venv/bin/activate
@@ -126,6 +126,57 @@ If you don't have a Google Cloud project yet:
 4. Go to **APIs & Credentials** > **Create Credentials** > **OAuth 2.0 Client ID**
 5. Choose **Desktop app** as application type
 6. Download the JSON and save it as `credentials/oauth_credentials.json`
+
+## Usage with Claude
+
+Claude supports MCP servers natively in both the CLI (Claude Code) and the Desktop app. You need to configure the server in both if you use both clients.
+
+### Claude Code (CLI)
+
+Edit `~/.claude/.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "google-workspace": {
+      "command": "/path/to/google-workspace-mcp/.venv/bin/python",
+      "args": ["/path/to/google-workspace-mcp/server.py"]
+    }
+  }
+}
+```
+
+Restart Claude Code after saving. The tools will appear automatically and you can ask things like:
+
+- "List my Google Ads accounts"
+- "Show campaign performance for account 123-456-7890 from 2026-01-01 to 2026-03-31"
+- "What are my top 50 search queries on Search Console for example.com in the last 30 days?"
+- "Run a GA4 report with sessions and conversions by country for the last week"
+- "Execute this GAQL query: SELECT campaign.name, metrics.cost_micros FROM campaign WHERE metrics.cost_micros > 0"
+
+### Claude Desktop App
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "google-workspace": {
+      "command": "/path/to/google-workspace-mcp/.venv/bin/python",
+      "args": ["/path/to/google-workspace-mcp/server.py"]
+    }
+  }
+}
+```
+
+Restart the Desktop app. You should see the MCP tools icon in the chat input area.
+
+### Tips
+
+- **Google Ads**: always provide the customer ID. If you work with an MCC, set `login_customer_id` in `google_ads.json` to avoid specifying it each time.
+- **Search Console**: use `sc-domain:example.com` for domain properties or `https://example.com/` for URL-prefix properties.
+- **GA4**: property IDs look like `properties/123456789`. Use `analytics_list_properties` to find yours.
+- **GAQL**: the `run_gaql_query` tool accepts any valid [Google Ads Query Language](https://developers.google.com/google-ads/api/docs/query/overview) query for advanced use cases.
 
 ## Security
 

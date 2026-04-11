@@ -1,7 +1,7 @@
 [project]
-name = "google-workspace-mcp"
+name = "google-search-console-mcp"
 version = "1.0.0"
-description = "MCP server for Google Ads, Google Analytics 4, and Google Search Console"
+description = "MCP server for Google Search Console, Google Ads, and Google Analytics 4"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
