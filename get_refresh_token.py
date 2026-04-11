@@ -1,4 +1,4 @@
-"""OAuth2 refresh token helper for Google Ads, Analytics, and Search Console."""
+"""OAuth2 refresh token helper for Google Search Console."""
 
 import json
 import http.server
@@ -10,8 +10,6 @@ CREDENTIALS_FILE = "credentials/oauth_credentials.json"
 TOKEN_FILE = "credentials/token.json"
 
 SCOPES = [
-    "https://www.googleapis.com/auth/adwords",
-    "https://www.googleapis.com/auth/analytics.readonly",
     "https://www.googleapis.com/auth/webmasters.readonly",
 ]
 
@@ -55,7 +53,7 @@ def main():
         def log_message(self, format, *args):
             pass
 
-    print(f"Opening browser for authorization...")
+    print("Opening browser for authorization...")
     webbrowser.open(auth_url)
 
     server = http.server.HTTPServer(("localhost", PORT), Handler)

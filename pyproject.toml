@@ -1,17 +1,15 @@
 [project]
 name = "google-search-console-mcp"
 version = "1.0.0"
-description = "MCP server for Google Search Console, Google Ads, and Google Analytics 4"
+description = "MCP server for Google Search Console"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
     "mcp>=1.0.0",
-    "google-ads>=29.0.0",
-    "google-analytics-data>=0.18.0",
     "google-auth>=2.0.0",
     "google-auth-oauthlib>=1.0.0",
 ]
 
 [project.scripts]
-google-workspace-mcp = "server:mcp.run"
+google-search-console-mcp = "server:mcp.run"
