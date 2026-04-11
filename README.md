@@ -23,7 +23,7 @@ MCP (Model Context Protocol) server for **Google Search Console**. Query search 
 git clone https://github.com/acamolese/google-search-console-mcp.git
 cd google-search-console-mcp
 
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 ```
@@ -50,7 +50,7 @@ Download your OAuth 2.0 credentials from Google Cloud Console (APIs & Credential
 Run the helper script to authorize via browser:
 
 ```bash
-python get_refresh_token.py
+python3 get_refresh_token.py
 ```
 
 This will open your browser for Google OAuth consent, capture the authorization code, and save the token to `credentials/token.json`.
@@ -77,7 +77,7 @@ Replace `/path/to/google-search-console-mcp` with the actual path where you clon
 Start the server manually to verify it loads without errors:
 
 ```bash
-python server.py
+python3 server.py
 ```
 
 The server communicates over stdio, so it will appear to hang (that's expected). Press `Ctrl+C` to stop.
