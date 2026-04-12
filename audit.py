@@ -1,18 +1,27 @@
 """Audit report generation for Google Search Console."""
 
-import html
+import base64
 import json
+import mimetypes
+import re
 import urllib.parse
+from collections import Counter, defaultdict
 from datetime import date, timedelta
 from pathlib import Path
+
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 
 BASE = "https://www.googleapis.com/webmasters/v3"
 INSPECT_BASE = "https://searchconsole.googleapis.com/v1"
 
+PROJECT_DIR = Path(__file__).parent
+TEMPLATES_DIR = PROJECT_DIR / "templates"
+DEFAULT_BRANDING = PROJECT_DIR / "branding.json"
+
 
 # ---------------------------------------------------------------------------
-# Period helpers
+# Period and naming helpers
 # ---------------------------------------------------------------------------
 
 def previous_period(date_from: str, date_to: str) -> tuple[str, str]:
@@ -29,6 +38,71 @@ def site_slug(site_url: str) -> str:
     s = s.replace("https://", "").replace("http://", "")
     s = s.replace("/", "_").replace(".", "_").strip("_")
     return s
+
+
+# ---------------------------------------------------------------------------
+# Branding
+# ---------------------------------------------------------------------------
+
+DEFAULT_BRANDING_DICT = {
+    "brand_name": "GSC Audit",
+    "logo": "",
+    "font_family": "Inter",
+    "font_url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+    "colors": {
+        "primary": "#4299e1",
+        "primary_dark": "#2b6cb0",
+        "secondary": "#9f7aea",
+        "accent": "#38a169",
+        "danger": "#e53e3e",
+        "warning": "#d69e2e",
+        "text": "#1a365d",
+        "text_muted": "#4a5568",
+        "text_light": "#718096",
+        "bg": "#f5f7fa",
+        "surface": "#ffffff",
+        "border": "#e2e8f0",
+    },
+}
+
+
+def _embed_logo(logo_value: str) -> str:
+    """Turn a local path or URL into an <img src=""> value.
+
+    Local paths are base64-encoded so the report stays self-contained.
+    URLs are returned as-is.
+    """
+    if not logo_value:
+        return ""
+    if logo_value.startswith(("http://", "https://", "data:")):
+        return logo_value
+    path = Path(logo_value).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_DIR / path
+    if not path.exists():
+        return ""
+    mime, _ = mimetypes.guess_type(str(path))
+    mime = mime or "image/png"
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime};base64,{encoded}"
+
+
+def load_branding(branding_path: str = "") -> dict:
+    """Load branding config from JSON, falling back to defaults."""
+    import copy
+    branding = copy.deepcopy(DEFAULT_BRANDING_DICT)
+    path = Path(branding_path).expanduser() if branding_path else DEFAULT_BRANDING
+    if path.exists():
+        try:
+            user = json.loads(path.read_text(encoding="utf-8"))
+            # Shallow merge with colors nested
+            if "colors" in user:
+                branding["colors"].update(user.pop("colors"))
+            branding.update(user)
+        except Exception:
+            pass
+    branding["logo_data"] = _embed_logo(branding.get("logo", ""))
+    return branding
 
 
 # ---------------------------------------------------------------------------
@@ -80,8 +154,11 @@ def collect_data(api_get, api_post, site_url: str, date_from: str, date_to: str)
         "startDate": date_from, "endDate": date_to,
         "dimensions": ["date"], "rowLimit": 1000,
     })
+    query_page = _query(api_post, site_url, {
+        "startDate": date_from, "endDate": date_to,
+        "dimensions": ["query", "page"], "rowLimit": 500,
+    })
 
-    # Sitemaps
     encoded = urllib.parse.quote(site_url, safe="")
     try:
         sitemaps_data = api_get(f"{BASE}/sites/{encoded}/sitemaps")
@@ -89,7 +166,6 @@ def collect_data(api_get, api_post, site_url: str, date_from: str, date_to: str)
     except Exception:
         sitemaps = []
 
-    # Indexing check on top 10 pages
     indexing = []
     for row in top_pages[:10]:
         page_url = row["keys"][0]
@@ -107,6 +183,16 @@ def collect_data(api_get, api_post, site_url: str, date_from: str, date_to: str)
         except Exception as e:
             indexing.append({"url": page_url, "verdict": "ERROR", "coverageState": str(e)[:100]})
 
+    # Flatten row records: copy `clicks`, `impressions`, `ctr`, `position` on top level
+    # so templates can access q.clicks without .get()
+    def _flatten(rows):
+        for r in rows:
+            r.setdefault("clicks", 0)
+            r.setdefault("impressions", 0)
+            r.setdefault("ctr", 0)
+            r.setdefault("position", 0)
+        return rows
+
     return {
         "site_url": site_url,
         "date_from": date_from,
@@ -115,11 +201,12 @@ def collect_data(api_get, api_post, site_url: str, date_from: str, date_to: str)
         "prev_to": prev_to,
         "current": current,
         "previous": previous,
-        "top_queries": top_queries,
-        "top_pages": top_pages,
-        "devices": devices,
-        "countries": countries,
-        "trend": trend,
+        "top_queries": _flatten(top_queries),
+        "top_pages": _flatten(top_pages),
+        "devices": _flatten(devices),
+        "countries": _flatten(countries),
+        "trend": _flatten(trend),
+        "query_page": _flatten(query_page),
         "sitemaps": sitemaps,
         "indexing": indexing,
     }
@@ -130,7 +217,6 @@ def collect_data(api_get, api_post, site_url: str, date_from: str, date_to: str)
 # ---------------------------------------------------------------------------
 
 def detect_issues(data: dict) -> list[dict]:
-    """Return a list of issue dicts with: severity, title, description, examples, strategy."""
     issues = []
 
     # --- Paginated pages ------------------------------------------------------
@@ -145,7 +231,7 @@ def detect_issues(data: dict) -> list[dict]:
             "severity": "high",
             "category": "Indicizzazione",
             "title": f"{len(paginated)} pagine paginate indicizzate",
-            "description": f"Le pagine paginate (con parametro ?p=) generano {int(total_clicks)} click complessivi e cannibalizzano le pagine principali della categoria. Google può scegliere canonicale diverso da quello dichiarato.",
+            "description": f"Le pagine paginate generano {int(total_clicks)} click complessivi e cannibalizzano le pagine principali della categoria. Google può scegliere canonicale diverso da quello dichiarato.",
             "examples": {"type": "pages", "rows": examples},
             "strategy": [
                 "Aggiungere <link rel=\"canonical\"> su tutte le pagine paginate puntando alla prima pagina della categoria",
@@ -179,16 +265,15 @@ def detect_issues(data: dict) -> list[dict]:
             ],
         })
 
-    # --- Host mix (www vs non-www, o altri subdomain) ------------------------
+    # --- Host mix -------------------------------------------------------------
     hostnames = set()
     for p in data["top_pages"]:
         url = p["keys"][0]
         if "://" in url:
-            host = url.split("://")[1].split("/")[0]
-            hostnames.add(host)
+            hostnames.add(url.split("://")[1].split("/")[0])
     base_hosts = set(h.replace("www.", "") for h in hostnames)
     if len(hostnames) > len(base_hosts):
-        mixed_pages = {}
+        mixed_pages: dict = {}
         for p in data["top_pages"]:
             url = p["keys"][0]
             if "://" in url:
@@ -210,13 +295,10 @@ def detect_issues(data: dict) -> list[dict]:
         })
 
     # --- Low CTR on high-volume queries --------------------------------------
-    low_ctr = []
-    for q in data["top_queries"]:
-        imp = q.get("impressions", 0)
-        ctr = q.get("ctr", 0)
-        pos = q.get("position", 100)
-        if imp >= 2000 and ctr < 0.02 and pos <= 10:
-            low_ctr.append(q)
+    low_ctr = [
+        q for q in data["top_queries"]
+        if q.get("impressions", 0) >= 2000 and q.get("ctr", 0) < 0.02 and q.get("position", 100) <= 10
+    ]
     if low_ctr:
         examples = [
             {"query": q["keys"][0], "impressions": int(q.get("impressions", 0)), "ctr": f"{q.get('ctr', 0) * 100:.2f}%", "position": f"{q.get('position', 0):.1f}"}
@@ -238,7 +320,7 @@ def detect_issues(data: dict) -> list[dict]:
             ],
         })
 
-    # --- Page-2 opportunities (position 11-20 with decent volume) -------------
+    # --- Page 2 opportunities ------------------------------------------------
     page_two = [q for q in data["top_queries"] if 10 < q.get("position", 0) <= 20 and q.get("impressions", 0) >= 500]
     if page_two:
         examples = [
@@ -252,7 +334,7 @@ def detect_issues(data: dict) -> list[dict]:
             "description": "Query in seconda pagina di Google che, con una spinta mirata, possono entrare in top 10 e aumentare significativamente il traffico.",
             "examples": {"type": "queries", "rows": examples},
             "strategy": [
-                "Identificare la pagina che Google posiziona per ognuna di queste query (usare la query query+page combinata)",
+                "Identificare la pagina che Google posiziona per ognuna di queste query",
                 "Arricchire il contenuto della pagina con informazioni mancanti (FAQ, specifiche, comparazioni)",
                 "Aggiungere link interni dalle pagine ad alta autorità verso queste pagine target",
                 "Analizzare i top 10 risultati attuali per capire cosa li rende migliori e colmare il gap",
@@ -261,11 +343,11 @@ def detect_issues(data: dict) -> list[dict]:
             ],
         })
 
-    # --- High-impression pages with poor CTR ---------------------------------
+    # --- Weak high-visibility pages ------------------------------------------
     weak_pages = [p for p in data["top_pages"] if p.get("impressions", 0) >= 5000 and p.get("ctr", 0) < 0.015]
     if weak_pages:
         examples = [
-            {"url": p["keys"][0], "impressions": int(p.get("impressions", 0)), "ctr": f"{p.get('ctr', 0) * 100:.2f}%", "position": f"{p.get('position', 0):.1f}"}
+            {"url": p["keys"][0], "clicks": int(p.get("clicks", 0)), "impressions": int(p.get("impressions", 0)), "position": f"{p.get('position', 0):.1f}"}
             for p in sorted(weak_pages, key=lambda x: x.get("impressions", 0), reverse=True)[:10]
         ]
         issues.append({
@@ -348,7 +430,7 @@ def detect_issues(data: dict) -> list[dict]:
                 ]},
                 "strategy": [
                     "Confrontare top 20 query e pagine nei due periodi per isolare dove è avvenuto il calo",
-                    "Verificare eventuali Google Core Update nelle date del calo (Search Engine Roundtable, SERoundtable)",
+                    "Verificare eventuali Google Core Update nelle date del calo",
                     "Controllare modifiche recenti al sito: deploy, redirect, rimozione pagine, cambio template",
                     "Analizzare il log del server per individuare errori 5xx o blocchi del crawler",
                     "Verificare manual action e problemi di sicurezza in Search Console",
@@ -356,67 +438,344 @@ def detect_issues(data: dict) -> list[dict]:
                 ],
             })
 
+    severity_order = {"high": 0, "medium": 1, "low": 2}
+    issues.sort(key=lambda x: severity_order.get(x["severity"], 9))
     return issues
 
 
 # ---------------------------------------------------------------------------
-# HTML rendering
+# Strategy builder
 # ---------------------------------------------------------------------------
 
-def _render_examples(examples: dict) -> str:
-    if not examples or not examples.get("rows"):
-        return ""
-    rows = examples["rows"]
-    ex_type = examples.get("type", "")
+STOPWORDS_IT = {
+    "il", "la", "di", "e", "a", "in", "da", "per", "con", "su", "un", "una", "uno",
+    "i", "gli", "le", "del", "della", "delle", "degli", "dei", "dello", "lo", "al",
+    "alla", "alle", "agli", "ai", "allo", "nel", "nella", "nelle", "negli", "nei",
+    "nello", "dal", "dalla", "dalle", "dagli", "dai", "dallo", "sul", "sulla",
+    "sulle", "sugli", "sui", "sullo", "che", "chi", "cui", "come", "cosa", "dove",
+    "quando", "quale", "quali", "quanto", "quanti", "se", "ma", "o", "ed", "ad",
+    "non", "più", "meno", "molto", "poco", "anche",
+}
 
-    if ex_type == "pages":
-        header = "<tr><th>URL</th><th>Click</th><th>Impression</th><th>Pos.</th></tr>"
-        body = "".join(
-            f"<tr><td class=\"url-cell\"><a href=\"{html.escape(r['url'])}\" target=\"_blank\">{html.escape(r['url'])}</a></td>"
-            f"<td class=\"num\">{r['clicks']:,}</td><td class=\"num\">{r['impressions']:,}</td><td class=\"num\">{r['position']}</td></tr>"
-            for r in rows
-        )
-    elif ex_type == "queries":
-        header = "<tr><th>Query</th><th>Impression</th><th>CTR</th><th>Pos.</th></tr>"
-        body = "".join(
-            f"<tr><td>{html.escape(r['query'])}</td><td class=\"num\">{r['impressions']:,}</td>"
-            f"<td class=\"num\">{r['ctr']}</td><td class=\"num\">{r['position']}</td></tr>"
-            for r in rows
-        )
-    elif ex_type == "hosts":
-        header = "<tr><th>Host</th><th>Click</th></tr>"
-        body = "".join(
-            f"<tr><td><code>{html.escape(r['host'])}</code></td><td class=\"num\">{r['clicks']:,}</td></tr>"
-            for r in rows
-        )
-    elif ex_type == "sitemaps":
-        header = "<tr><th>Path</th><th>Warning</th><th>Errori</th><th>Ultimo download</th></tr>"
-        body = "".join(
-            f"<tr><td><code>{html.escape(r['path'])}</code></td><td class=\"num\">{r['warnings']}</td>"
-            f"<td class=\"num\">{r['errors']}</td><td class=\"num\">{html.escape(r['lastDownloaded'])}</td></tr>"
-            for r in rows
-        )
-    elif ex_type == "indexing":
-        header = "<tr><th>URL</th><th>Verdetto</th><th>Stato</th></tr>"
-        body = "".join(
-            f"<tr><td class=\"url-cell\"><a href=\"{html.escape(r['url'])}\" target=\"_blank\">{html.escape(r['url'])}</a></td>"
-            f"<td><strong>{html.escape(r['verdict'])}</strong></td><td>{html.escape(r['coverageState'])}</td></tr>"
-            for r in rows
-        )
-    elif ex_type == "metric":
-        header = "<tr><th>Metrica</th><th>Precedente</th><th>Attuale</th><th>Delta</th></tr>"
-        body = "".join(
-            f"<tr><td>{html.escape(r['metric'])}</td><td class=\"num\">{html.escape(r['prev'])}</td>"
-            f"<td class=\"num\">{html.escape(r['curr'])}</td><td class=\"num\"><strong>{html.escape(r['delta'])}</strong></td></tr>"
-            for r in rows
-        )
-    else:
-        return ""
-
-    return f'<div class="issue-examples"><div class="examples-label">Esempi ({len(rows)})</div><table class="examples-table"><thead>{header}</thead><tbody>{body}</tbody></table></div>'
+CTR_BY_POSITION = {
+    1: 0.275, 2: 0.155, 3: 0.100, 4: 0.075, 5: 0.060,
+    6: 0.048, 7: 0.038, 8: 0.031, 9: 0.026, 10: 0.022,
+}
 
 
-def _delta_badge(cur: float, prev: float, inverse: bool = False) -> str:
+def _expected_ctr(position: float) -> float:
+    pos = max(1, min(10, int(round(position))))
+    return CTR_BY_POSITION.get(pos, 0.015)
+
+
+def _extract_brand(site_url: str) -> str:
+    s = site_url.replace("sc-domain:", "").replace("https://", "").replace("http://", "")
+    s = s.split("/")[0].replace("www.", "")
+    return s.split(".")[0].lower()
+
+
+def build_strategy(data: dict, issues: list[dict]) -> dict:
+    brand = _extract_brand(data["site_url"])
+
+    brand_clicks = brand_imp = 0
+    non_brand_clicks = non_brand_imp = 0
+    non_brand_queries = []
+    for q in data["top_queries"]:
+        text = q["keys"][0].lower()
+        clicks = q.get("clicks", 0)
+        imp = q.get("impressions", 0)
+        if brand and brand in text.replace(" ", ""):
+            brand_clicks += clicks
+            brand_imp += imp
+        else:
+            non_brand_clicks += clicks
+            non_brand_imp += imp
+            non_brand_queries.append(q)
+
+    total_clicks = brand_clicks + non_brand_clicks
+    brand_pct = (brand_clicks / total_clicks * 100) if total_clicks > 0 else 0
+
+    # Page 2 opportunities
+    page_two_wins = []
+    for q in data["top_queries"]:
+        pos = q.get("position", 100)
+        imp = q.get("impressions", 0)
+        if 10 < pos <= 20 and imp >= 300:
+            cur_clicks = q.get("clicks", 0)
+            est_clicks = int(imp * _expected_ctr(5))
+            uplift = max(0, est_clicks - cur_clicks)
+            page_two_wins.append({
+                "query": q["keys"][0],
+                "impressions": int(imp),
+                "ctr": f"{q.get('ctr', 0) * 100:.2f}%",
+                "position": f"{pos:.1f}",
+                "current_clicks": int(cur_clicks),
+                "potential_clicks": est_clicks,
+                "uplift": uplift,
+            })
+    page_two_wins.sort(key=lambda x: x["uplift"], reverse=True)
+    page_two_wins = page_two_wins[:15]
+
+    # High-potential pages
+    high_potential = []
+    for p in data["top_pages"]:
+        imp = p.get("impressions", 0)
+        ctr = p.get("ctr", 0)
+        pos = p.get("position", 100)
+        if imp >= 3000 and pos <= 15:
+            expected = _expected_ctr(pos)
+            if ctr < expected * 0.7:
+                cur_clicks = p.get("clicks", 0)
+                potential = int(imp * expected)
+                uplift = max(0, potential - cur_clicks)
+                high_potential.append({
+                    "url": p["keys"][0],
+                    "impressions": int(imp),
+                    "ctr": f"{ctr * 100:.2f}%",
+                    "expected_ctr": f"{expected * 100:.1f}%",
+                    "position": f"{pos:.1f}",
+                    "current_clicks": int(cur_clicks),
+                    "potential_clicks": potential,
+                    "uplift": uplift,
+                })
+    high_potential.sort(key=lambda x: x["uplift"], reverse=True)
+    high_potential = high_potential[:10]
+
+    # Top themes
+    word_clicks: Counter = Counter()
+    word_impressions: Counter = Counter()
+    word_queries: dict = defaultdict(set)
+    for q in non_brand_queries:
+        text = q["keys"][0].lower()
+        words = re.findall(r"[a-zàèéìòù]{4,}", text)
+        for w in words:
+            if w in STOPWORDS_IT or w == brand:
+                continue
+            word_clicks[w] += q.get("clicks", 0)
+            word_impressions[w] += q.get("impressions", 0)
+            word_queries[w].add(text)
+    top_themes = [
+        {
+            "theme": word,
+            "clicks": int(clicks),
+            "impressions": int(word_impressions[word]),
+            "query_count": len(word_queries[word]),
+        }
+        for word, clicks in word_clicks.most_common(15)
+    ]
+
+    # Cannibalization
+    query_to_pages: dict = defaultdict(list)
+    for row in data["query_page"]:
+        query = row["keys"][0]
+        page = row["keys"][1]
+        query_to_pages[query].append({
+            "page": page,
+            "clicks": row.get("clicks", 0),
+            "impressions": row.get("impressions", 0),
+            "position": row.get("position", 0),
+        })
+    cannibalization = []
+    for query, pages in query_to_pages.items():
+        if len(pages) < 2:
+            continue
+        total = sum(p["clicks"] for p in pages)
+        if total < 10:
+            continue
+        pages.sort(key=lambda x: x["clicks"], reverse=True)
+        cannibalization.append({
+            "query": query,
+            "pages": pages[:4],
+            "total_clicks": int(total),
+            "page_count": len(pages),
+        })
+    cannibalization.sort(key=lambda x: x["total_clicks"], reverse=True)
+    cannibalization = cannibalization[:10]
+
+    # Featured snippet opportunities
+    question_words = ("come", "cosa", "quando", "perché", "perche", "quale", "dove", "quanto", "chi")
+    questions = []
+    for q in data["top_queries"]:
+        text = q["keys"][0].lower()
+        first_word = text.split(" ")[0] if text else ""
+        if first_word in question_words and q.get("position", 100) <= 15:
+            questions.append({
+                "query": q["keys"][0],
+                "impressions": int(q.get("impressions", 0)),
+                "ctr": f"{q.get('ctr', 0) * 100:.2f}%",
+                "position": f"{q.get('position', 0):.1f}",
+            })
+    questions.sort(key=lambda x: x["impressions"], reverse=True)
+    questions = questions[:10]
+
+    # Geographic opportunities
+    geo_opportunities = []
+    if data["countries"]:
+        primary_ctr = data["countries"][0].get("ctr", 0)
+        for c in data["countries"][1:]:
+            imp = c.get("impressions", 0)
+            ctr = c.get("ctr", 0)
+            if imp >= 500 and ctr > primary_ctr * 0.8:
+                geo_opportunities.append({
+                    "country": c["keys"][0].upper(),
+                    "clicks": int(c.get("clicks", 0)),
+                    "impressions": int(imp),
+                    "ctr": f"{ctr * 100:.2f}%",
+                    "position": f"{c.get('position', 0):.1f}",
+                })
+
+    # Device gap
+    device_insights = None
+    device_dict = {d["keys"][0]: d for d in data["devices"]}
+    if "MOBILE" in device_dict and "DESKTOP" in device_dict:
+        mob = device_dict["MOBILE"]
+        desk = device_dict["DESKTOP"]
+        gap = desk.get("position", 0) - mob.get("position", 0)
+        total = mob.get("clicks", 0) + desk.get("clicks", 0)
+        device_insights = {
+            "mobile_position": f"{mob.get('position', 0):.1f}",
+            "desktop_position": f"{desk.get('position', 0):.1f}",
+            "gap": f"{gap:+.1f}",
+            "mobile_share": (mob.get("clicks", 0) / total * 100) if total else 0,
+            "has_gap": abs(gap) > 1.5,
+        }
+
+    total_uplift = sum(w["uplift"] for w in page_two_wins) + sum(p["uplift"] for p in high_potential)
+
+    # Quick wins
+    quick_wins = []
+    if high_potential:
+        top = high_potential[0]
+        quick_wins.append({
+            "title": "Riscrivere title e meta description sulle pagine ad alta visibilità",
+            "impact": "Alto",
+            "effort": "Basso",
+            "action": f"Iniziare da {top['url']} ({top['impressions']:,} impression, CTR {top['ctr']} vs atteso {top['expected_ctr']}). Potenziale uplift: +{top['uplift']:,} click.",
+        })
+    if page_two_wins:
+        top_pt = page_two_wins[0]
+        quick_wins.append({
+            "title": "Spingere le query in posizione 11-20 verso la top 10",
+            "impact": "Alto",
+            "effort": "Medio",
+            "action": f"Focus sulla query '{top_pt['query']}' ({top_pt['impressions']:,} imp, pos {top_pt['position']}). Arricchire la pagina target con contenuti mancanti, link interni e schema markup.",
+        })
+    if cannibalization:
+        top_cann = cannibalization[0]
+        quick_wins.append({
+            "title": "Risolvere la cannibalizzazione tra pagine",
+            "impact": "Medio",
+            "effort": "Medio",
+            "action": f"La query '{top_cann['query']}' è divisa su {top_cann['page_count']} pagine. Consolidare canonical, rafforzare una sola pagina target per query.",
+        })
+    if any(i.get("severity") == "high" and "HTTP" in i.get("title", "") for i in issues):
+        quick_wins.append({
+            "title": "Forzare HTTPS ovunque con redirect 301",
+            "impact": "Alto",
+            "effort": "Basso",
+            "action": "Configurare redirect 301 da HTTP a HTTPS a livello server, verificare HSTS, aggiornare sitemap e risottomettere.",
+        })
+    if any("paginate" in i.get("title", "") for i in issues):
+        quick_wins.append({
+            "title": "Canonicalizzare pagine paginate",
+            "impact": "Medio",
+            "effort": "Basso",
+            "action": "Aggiungere rel=canonical dalle pagine ?p=N verso la pagina 1 della categoria per consolidare l'autorità.",
+        })
+    if questions:
+        quick_wins.append({
+            "title": "Ottimizzare per featured snippet e People Also Ask",
+            "impact": "Medio",
+            "effort": "Medio",
+            "action": f"Rilevate {len(questions)} query interrogative in top 15. Aggiungere sezioni FAQ strutturate con risposte brevi (40-60 parole) e schema FAQPage.",
+        })
+    if brand_pct > 50:
+        quick_wins.append({
+            "title": "Ridurre la dipendenza dal traffico brand",
+            "impact": "Alto",
+            "effort": "Alto",
+            "action": f"Il {brand_pct:.0f}% del traffico arriva da query brand. Investire in contenuti informativi top-of-funnel per allargare il bacino di utenti non-brand.",
+        })
+    if top_themes:
+        top_theme = top_themes[0]
+        quick_wins.append({
+            "title": f"Creare contenuti hub sul tema '{top_theme['theme']}'",
+            "impact": "Medio",
+            "effort": "Alto",
+            "action": f"Il tema '{top_theme['theme']}' concentra {top_theme['clicks']:,} click su {top_theme['query_count']} query. Creare una pagina pillar e cluster di contenuti di supporto.",
+        })
+
+    # Executive summary
+    cur_clicks = data["current"]["clicks"]
+    prev_clicks = data["previous"]["clicks"]
+    trend_pct = ((cur_clicks - prev_clicks) / prev_clicks * 100) if prev_clicks > 0 else 0
+    high_issues = len([i for i in issues if i.get("severity") == "high"])
+    medium_issues = len([i for i in issues if i.get("severity") == "medium"])
+
+    executive = {
+        "trend_pct": trend_pct,
+        "brand_pct": brand_pct,
+        "non_brand_pct": 100 - brand_pct,
+        "non_brand_clicks": int(non_brand_clicks),
+        "high_issues": high_issues,
+        "medium_issues": medium_issues,
+        "total_uplift": int(total_uplift),
+        "quick_win_count": len(quick_wins),
+    }
+
+    # Roadmap
+    roadmap: dict = {"30": [], "60": [], "90": []}
+    for i in issues:
+        if i.get("severity") == "high":
+            roadmap["30"].append(f"[CRITICO] {i['title']}")
+    for qw in quick_wins[:3]:
+        if qw.get("effort") == "Basso":
+            roadmap["30"].append(qw["title"])
+    if not roadmap["30"]:
+        roadmap["30"].append("Nessun intervento critico urgente: procedere con ottimizzazioni di medio termine")
+
+    for qw in quick_wins:
+        if qw.get("effort") == "Medio":
+            roadmap["60"].append(qw["title"])
+    if page_two_wins:
+        roadmap["60"].append(f"Ottimizzare {min(10, len(page_two_wins))} pagine target per le query in posizione 11-20")
+    if cannibalization:
+        roadmap["60"].append(f"Risolvere cannibalizzazione su {min(5, len(cannibalization))} query principali")
+
+    if top_themes:
+        roadmap["90"].append(f"Creare hub di contenuti sui temi principali: {', '.join(t['theme'] for t in top_themes[:3])}")
+    if brand_pct > 40:
+        roadmap["90"].append("Espandere il funnel con contenuti informativi per acquisire traffico non-brand")
+    if geo_opportunities:
+        countries_list = ", ".join(g["country"] for g in geo_opportunities[:3])
+        roadmap["90"].append(f"Valutare localizzazione per mercati emergenti: {countries_list}")
+    roadmap["90"].append("Analisi backlink e piano di digital PR per aumentare l'autorità del dominio")
+    roadmap["90"].append("Audit dei competitor per identificare gap di contenuto")
+
+    return {
+        "executive": executive,
+        "quick_wins": quick_wins,
+        "page_two_wins": page_two_wins,
+        "high_potential_pages": high_potential,
+        "top_themes": top_themes,
+        "cannibalization": cannibalization,
+        "questions": questions,
+        "geo_opportunities": geo_opportunities,
+        "device_insights": device_insights,
+        "roadmap": roadmap,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Rendering (Jinja2)
+# ---------------------------------------------------------------------------
+
+def _shorten_url(url: str, max_len: int = 60) -> str:
+    s = url.replace("https://", "").replace("http://", "")
+    return s if len(s) <= max_len else s[: max_len - 3] + "..."
+
+
+def _delta_html(cur: float, prev: float, inverse: bool = False) -> str:
     if prev == 0:
         return '<span class="delta neutral">n/a</span>'
     pct = (cur - prev) / prev * 100
@@ -428,338 +787,128 @@ def _delta_badge(cur: float, prev: float, inverse: bool = False) -> str:
     return f'<span class="delta {cls}">{arrow} {pct:+.1f}%</span>'
 
 
-def _format_pct(v: float) -> str:
-    return f"{v * 100:.2f}%"
-
-
-def render_html(data: dict, issues: list[dict]) -> str:
-    site = data["site_url"]
+def _build_kpis(data: dict) -> list[dict]:
     cur = data["current"]
     prev = data["previous"]
+    return [
+        {"label": "Click", "value": f"{int(cur['clicks']):,}", "delta": _delta_html(cur["clicks"], prev["clicks"])},
+        {"label": "Impression", "value": f"{int(cur['impressions']):,}", "delta": _delta_html(cur["impressions"], prev["impressions"])},
+        {"label": "CTR", "value": f"{cur['ctr'] * 100:.2f}%", "delta": _delta_html(cur["ctr"], prev["ctr"])},
+        {"label": "Posizione media", "value": f"{cur['position']:.1f}", "delta": _delta_html(cur["position"], prev["position"], inverse=True)},
+    ]
 
-    # Trend data for Chart.js
-    trend_labels = [r["keys"][0] for r in data["trend"]]
-    trend_clicks = [r.get("clicks", 0) for r in data["trend"]]
-    trend_impressions = [r.get("impressions", 0) for r in data["trend"]]
 
-    # Device data for chart
-    device_labels = [r["keys"][0] for r in data["devices"]]
-    device_clicks = [r.get("clicks", 0) for r in data["devices"]]
+def _build_charts(data: dict) -> dict:
+    return {
+        "trend_labels": [r["keys"][0] for r in data["trend"]],
+        "trend_clicks": [r.get("clicks", 0) for r in data["trend"]],
+        "trend_impressions": [r.get("impressions", 0) for r in data["trend"]],
+        "device_labels": [r["keys"][0] for r in data["devices"]],
+        "device_clicks": [r.get("clicks", 0) for r in data["devices"]],
+        "device_positions": [r.get("position", 0) for r in data["devices"]],
+    }
 
-    # Build query table
-    query_rows = ""
-    for q in data["top_queries"][:30]:
-        query_rows += f"""
-        <tr>
-            <td>{html.escape(q['keys'][0])}</td>
-            <td class="num">{int(q.get('clicks', 0)):,}</td>
-            <td class="num">{int(q.get('impressions', 0)):,}</td>
-            <td class="num">{_format_pct(q.get('ctr', 0))}</td>
-            <td class="num">{q.get('position', 0):.1f}</td>
-        </tr>"""
 
-    page_rows = ""
-    for p in data["top_pages"][:30]:
-        url = p["keys"][0]
-        short = url.replace("https://", "").replace("http://", "")
-        if len(short) > 60:
-            short = short[:57] + "..."
-        page_rows += f"""
-        <tr>
-            <td><a href="{html.escape(url)}" target="_blank">{html.escape(short)}</a></td>
-            <td class="num">{int(p.get('clicks', 0)):,}</td>
-            <td class="num">{int(p.get('impressions', 0)):,}</td>
-            <td class="num">{_format_pct(p.get('ctr', 0))}</td>
-            <td class="num">{p.get('position', 0):.1f}</td>
-        </tr>"""
+def _render_example_table(examples: dict) -> str:
+    """Render a small table inside an issue card. Pure HTML, no Jinja."""
+    if not examples or not examples.get("rows"):
+        return ""
+    rows = examples["rows"]
+    ex_type = examples.get("type", "")
+    from html import escape as esc
 
-    country_rows = ""
-    for c in data["countries"]:
-        country_rows += f"""
-        <tr>
-            <td>{html.escape(c['keys'][0].upper())}</td>
-            <td class="num">{int(c.get('clicks', 0)):,}</td>
-            <td class="num">{int(c.get('impressions', 0)):,}</td>
-            <td class="num">{_format_pct(c.get('ctr', 0))}</td>
-            <td class="num">{c.get('position', 0):.1f}</td>
-        </tr>"""
+    def row_td(items):
+        return "".join(items)
 
-    sitemap_rows = ""
-    for s in data["sitemaps"]:
-        warnings = int(s.get("warnings", 0))
-        errors = int(s.get("errors", 0))
-        status_cls = "ok" if warnings == 0 and errors == 0 else ("warn" if errors == 0 else "err")
-        sitemap_rows += f"""
-        <tr>
-            <td><code>{html.escape(s.get('path', ''))}</code></td>
-            <td class="num">{html.escape(s.get('lastDownloaded', '')[:10])}</td>
-            <td class="num status-{status_cls}">{warnings}</td>
-            <td class="num status-{status_cls}">{errors}</td>
-        </tr>"""
-
-    indexing_rows = ""
-    for i in data["indexing"]:
-        url = i["url"]
-        short = url.replace("https://", "").replace("http://", "")
-        if len(short) > 60:
-            short = short[:57] + "..."
-        verdict = i["verdict"]
-        cls = "ok" if verdict == "PASS" else "warn"
-        indexing_rows += f"""
-        <tr>
-            <td><a href="{html.escape(url)}" target="_blank">{html.escape(short)}</a></td>
-            <td class="status-{cls}"><strong>{html.escape(verdict)}</strong></td>
-            <td>{html.escape(i['coverageState'])}</td>
-        </tr>"""
-
-    issue_cards = ""
-    if issues:
-        severity_order = {"high": 0, "medium": 1, "low": 2}
-        for i in sorted(issues, key=lambda x: severity_order.get(x["severity"], 9)):
-            examples_html = _render_examples(i.get("examples", {}))
-            strategy_html = ""
-            if i.get("strategy"):
-                items = "".join(f"<li>{html.escape(s)}</li>" for s in i["strategy"])
-                strategy_html = f'<div class="issue-strategy"><div class="strategy-label">Strategia consigliata</div><ol>{items}</ol></div>'
-            category = i.get("category", "")
-            category_html = f'<span class="issue-category">{html.escape(category)}</span>' if category else ""
-            issue_cards += f"""
-            <div class="issue issue-{i['severity']}">
-                <div class="issue-header">
-                    <span class="issue-severity">{i['severity'].upper()}</span>
-                    {category_html}
-                </div>
-                <div class="issue-title">{html.escape(i['title'])}</div>
-                <div class="issue-desc">{html.escape(i['description'])}</div>
-                {examples_html}
-                {strategy_html}
-            </div>"""
+    if ex_type == "pages":
+        header = "<tr><th>URL</th><th>Click</th><th>Impression</th><th>Pos.</th></tr>"
+        body = "".join(
+            f"<tr><td class='url-cell'><a href='{esc(r.get('url', ''))}' target='_blank'>{esc(r.get('url', ''))}</a></td>"
+            f"<td class='num'>{int(r.get('clicks', 0)):,}</td><td class='num'>{int(r.get('impressions', 0)):,}</td><td class='num'>{r.get('position', '')}</td></tr>"
+            for r in rows
+        )
+    elif ex_type == "queries":
+        header = "<tr><th>Query</th><th>Impression</th><th>CTR</th><th>Pos.</th></tr>"
+        body = "".join(
+            f"<tr><td>{esc(r.get('query', ''))}</td><td class='num'>{int(r.get('impressions', 0)):,}</td>"
+            f"<td class='num'>{r.get('ctr', '')}</td><td class='num'>{r.get('position', '')}</td></tr>"
+            for r in rows
+        )
+    elif ex_type == "hosts":
+        header = "<tr><th>Host</th><th>Click</th></tr>"
+        body = "".join(
+            f"<tr><td><code>{esc(r['host'])}</code></td><td class='num'>{r['clicks']:,}</td></tr>"
+            for r in rows
+        )
+    elif ex_type == "sitemaps":
+        header = "<tr><th>Path</th><th>Warning</th><th>Errori</th><th>Ultimo download</th></tr>"
+        body = "".join(
+            f"<tr><td><code>{esc(r['path'])}</code></td><td class='num'>{r['warnings']}</td>"
+            f"<td class='num'>{r['errors']}</td><td class='num'>{esc(r['lastDownloaded'])}</td></tr>"
+            for r in rows
+        )
+    elif ex_type == "indexing":
+        header = "<tr><th>URL</th><th>Verdetto</th><th>Stato</th></tr>"
+        body = "".join(
+            f"<tr><td class='url-cell'><a href='{esc(r['url'])}' target='_blank'>{esc(r['url'])}</a></td>"
+            f"<td><strong>{esc(r['verdict'])}</strong></td><td>{esc(r['coverageState'])}</td></tr>"
+            for r in rows
+        )
+    elif ex_type == "metric":
+        header = "<tr><th>Metrica</th><th>Precedente</th><th>Attuale</th><th>Delta</th></tr>"
+        body = "".join(
+            f"<tr><td>{esc(r['metric'])}</td><td class='num'>{esc(r['prev'])}</td>"
+            f"<td class='num'>{esc(r['curr'])}</td><td class='num'><strong>{esc(r['delta'])}</strong></td></tr>"
+            for r in rows
+        )
     else:
-        issue_cards = '<p class="empty">Nessuna criticità rilevata automaticamente.</p>'
-
-    return f"""<!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="UTF-8">
-<title>Audit SEO - {html.escape(site)}</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-* {{ box-sizing: border-box; margin: 0; padding: 0; }}
-body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f7fa; color: #1a202c; line-height: 1.5; }}
-.container {{ max-width: 1200px; margin: 0 auto; padding: 40px 24px; }}
-header {{ border-bottom: 3px solid #4299e1; padding-bottom: 24px; margin-bottom: 32px; }}
-h1 {{ font-size: 28px; color: #1a365d; margin-bottom: 8px; }}
-.subtitle {{ color: #4a5568; font-size: 15px; }}
-h2 {{ font-size: 20px; color: #2d3748; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }}
-.kpi-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }}
-.kpi-card {{ background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }}
-.kpi-label {{ font-size: 12px; text-transform: uppercase; color: #718096; letter-spacing: 0.5px; }}
-.kpi-value {{ font-size: 28px; font-weight: 700; color: #1a365d; margin-top: 4px; }}
-.delta {{ display: inline-block; font-size: 12px; font-weight: 600; margin-top: 6px; }}
-.delta.positive {{ color: #38a169; }}
-.delta.negative {{ color: #e53e3e; }}
-.delta.neutral {{ color: #718096; }}
-.chart-container {{ background: white; border-radius: 10px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 24px; height: 320px; }}
-.chart-row {{ display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }}
-.chart-row .chart-container {{ height: 280px; }}
-table {{ width: 100%; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-collapse: collapse; }}
-th {{ background: #edf2f7; text-align: left; padding: 12px 16px; font-size: 12px; text-transform: uppercase; color: #4a5568; font-weight: 600; letter-spacing: 0.5px; }}
-td {{ padding: 12px 16px; border-top: 1px solid #e2e8f0; font-size: 14px; }}
-td.num {{ text-align: right; font-variant-numeric: tabular-nums; }}
-td a {{ color: #3182ce; text-decoration: none; }}
-td a:hover {{ text-decoration: underline; }}
-code {{ background: #edf2f7; padding: 2px 6px; border-radius: 4px; font-size: 12px; }}
-.status-ok {{ color: #38a169; }}
-.status-warn {{ color: #d69e2e; }}
-.status-err {{ color: #e53e3e; }}
-.issue {{ background: white; border-left: 4px solid; border-radius: 6px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }}
-.issue-high {{ border-color: #e53e3e; }}
-.issue-medium {{ border-color: #d69e2e; }}
-.issue-low {{ border-color: #4299e1; }}
-.issue-header {{ display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }}
-.issue-severity {{ display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 10px; background: #edf2f7; color: #4a5568; }}
-.issue-high .issue-severity {{ background: #fed7d7; color: #c53030; }}
-.issue-medium .issue-severity {{ background: #feebc8; color: #c05621; }}
-.issue-low .issue-severity {{ background: #bee3f8; color: #2b6cb0; }}
-.issue-category {{ font-size: 11px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }}
-.issue-title {{ font-size: 17px; font-weight: 600; margin: 4px 0 8px; color: #1a365d; }}
-.issue-desc {{ font-size: 14px; color: #4a5568; margin-bottom: 14px; }}
-.issue-examples {{ margin: 14px 0; background: #f7fafc; border-radius: 6px; padding: 12px 14px; }}
-.examples-label {{ font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #718096; font-weight: 600; margin-bottom: 8px; }}
-.examples-table {{ width: 100%; background: transparent; box-shadow: none; border-radius: 0; }}
-.examples-table th {{ background: transparent; padding: 6px 10px; font-size: 10px; color: #a0aec0; }}
-.examples-table td {{ padding: 6px 10px; font-size: 12px; border-top: 1px solid #e2e8f0; }}
-.examples-table td.url-cell {{ max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-.issue-strategy {{ margin-top: 14px; background: #ebf8ff; border-left: 3px solid #4299e1; border-radius: 4px; padding: 12px 16px; }}
-.strategy-label {{ font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #2b6cb0; font-weight: 700; margin-bottom: 8px; }}
-.issue-strategy ol {{ padding-left: 20px; font-size: 13px; color: #2c5282; }}
-.issue-strategy li {{ margin-bottom: 4px; line-height: 1.5; }}
-.empty {{ text-align: center; color: #718096; padding: 24px; background: white; border-radius: 10px; }}
-footer {{ text-align: center; color: #a0aec0; font-size: 12px; margin-top: 48px; padding-top: 24px; border-top: 1px solid #e2e8f0; }}
-</style>
-</head>
-<body>
-<div class="container">
-<header>
-    <h1>Audit SEO - {html.escape(site)}</h1>
-    <div class="subtitle">Periodo: {data['date_from']} → {data['date_to']} · Confronto con {data['prev_from']} → {data['prev_to']}</div>
-</header>
-
-<h2>Performance generale</h2>
-<div class="kpi-grid">
-    <div class="kpi-card">
-        <div class="kpi-label">Click</div>
-        <div class="kpi-value">{int(cur['clicks']):,}</div>
-        {_delta_badge(cur['clicks'], prev['clicks'])}
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-label">Impression</div>
-        <div class="kpi-value">{int(cur['impressions']):,}</div>
-        {_delta_badge(cur['impressions'], prev['impressions'])}
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-label">CTR</div>
-        <div class="kpi-value">{_format_pct(cur['ctr'])}</div>
-        {_delta_badge(cur['ctr'], prev['ctr'])}
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-label">Posizione media</div>
-        <div class="kpi-value">{cur['position']:.1f}</div>
-        {_delta_badge(cur['position'], prev['position'], inverse=True)}
-    </div>
-</div>
-
-<div class="chart-container">
-    <canvas id="trendChart"></canvas>
-</div>
-
-<div class="chart-row">
-    <div class="chart-container">
-        <canvas id="deviceChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <canvas id="deviceClicksChart"></canvas>
-    </div>
-</div>
-
-<h2>Criticità e opportunità</h2>
-{issue_cards}
-
-<h2>Top 30 query</h2>
-<table>
-    <thead><tr><th>Query</th><th style="text-align:right">Click</th><th style="text-align:right">Impression</th><th style="text-align:right">CTR</th><th style="text-align:right">Pos.</th></tr></thead>
-    <tbody>{query_rows}</tbody>
-</table>
-
-<h2>Top 30 pagine</h2>
-<table>
-    <thead><tr><th>Pagina</th><th style="text-align:right">Click</th><th style="text-align:right">Impression</th><th style="text-align:right">CTR</th><th style="text-align:right">Pos.</th></tr></thead>
-    <tbody>{page_rows}</tbody>
-</table>
-
-<h2>Top paesi</h2>
-<table>
-    <thead><tr><th>Paese</th><th style="text-align:right">Click</th><th style="text-align:right">Impression</th><th style="text-align:right">CTR</th><th style="text-align:right">Pos.</th></tr></thead>
-    <tbody>{country_rows}</tbody>
-</table>
-
-<h2>Sitemap</h2>
-<table>
-    <thead><tr><th>Path</th><th style="text-align:right">Ultimo download</th><th style="text-align:right">Warning</th><th style="text-align:right">Errori</th></tr></thead>
-    <tbody>{sitemap_rows}</tbody>
-</table>
-
-<h2>Indicizzazione top 10 pagine</h2>
-<table>
-    <thead><tr><th>Pagina</th><th>Verdetto</th><th>Stato copertura</th></tr></thead>
-    <tbody>{indexing_rows}</tbody>
-</table>
-
-<footer>Report generato automaticamente · Google Search Console MCP</footer>
-</div>
-
-<script>
-const trendCtx = document.getElementById('trendChart').getContext('2d');
-new Chart(trendCtx, {{
-    type: 'line',
-    data: {{
-        labels: {json.dumps(trend_labels)},
-        datasets: [
-            {{
-                label: 'Click',
-                data: {json.dumps(trend_clicks)},
-                borderColor: '#4299e1',
-                backgroundColor: 'rgba(66, 153, 225, 0.1)',
-                yAxisID: 'y',
-                tension: 0.3,
-                fill: true,
-            }},
-            {{
-                label: 'Impression',
-                data: {json.dumps(trend_impressions)},
-                borderColor: '#9f7aea',
-                backgroundColor: 'rgba(159, 122, 234, 0.05)',
-                yAxisID: 'y1',
-                tension: 0.3,
-                fill: false,
-            }}
-        ]
-    }},
-    options: {{
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {{ title: {{ display: true, text: 'Andamento giornaliero' }} }},
-        scales: {{
-            y: {{ type: 'linear', position: 'left', title: {{ display: true, text: 'Click' }} }},
-            y1: {{ type: 'linear', position: 'right', title: {{ display: true, text: 'Impression' }}, grid: {{ drawOnChartArea: false }} }}
-        }}
-    }}
-}});
-
-const deviceCtx = document.getElementById('deviceChart').getContext('2d');
-new Chart(deviceCtx, {{
-    type: 'doughnut',
-    data: {{
-        labels: {json.dumps(device_labels)},
-        datasets: [{{
-            data: {json.dumps(device_clicks)},
-            backgroundColor: ['#4299e1', '#9f7aea', '#ed8936'],
-        }}]
-    }},
-    options: {{
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {{ title: {{ display: true, text: 'Click per dispositivo' }} }}
-    }}
-}});
-
-const deviceClicksCtx = document.getElementById('deviceClicksChart').getContext('2d');
-new Chart(deviceClicksCtx, {{
-    type: 'bar',
-    data: {{
-        labels: {json.dumps(device_labels)},
-        datasets: [{{
-            label: 'Posizione media',
-            data: {json.dumps([r.get('position', 0) for r in data['devices']])},
-            backgroundColor: '#4299e1',
-        }}]
-    }},
-    options: {{
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {{ title: {{ display: true, text: 'Posizione media per dispositivo' }}, legend: {{ display: false }} }},
-        scales: {{ y: {{ reverse: true, beginAtZero: true }} }}
-    }}
-}});
-</script>
-</body>
-</html>"""
+        return ""
+    return f"<table class='examples-table'><thead>{header}</thead><tbody>{body}</tbody></table>"
 
 
-def generate_audit(api_get, api_post, site_url: str, date_from: str, date_to: str, output_dir: str = "") -> str:
+def _jinja_env() -> Environment:
+    env = Environment(
+        loader=FileSystemLoader(str(TEMPLATES_DIR)),
+        autoescape=select_autoescape(["html", "xml"]),
+        trim_blocks=False,
+        lstrip_blocks=False,
+    )
+    env.filters["shorten_url"] = _shorten_url
+    return env
+
+
+def render_html(data: dict, issues: list[dict], strategy: dict, branding: dict) -> str:
+    env = _jinja_env()
+    template = env.get_template("report.html.j2")
+    return template.render(
+        data=data,
+        issues=issues,
+        strategy=strategy,
+        branding=branding,
+        kpis=_build_kpis(data),
+        charts=_build_charts(data),
+        render_example=_render_example_table,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def generate_audit(
+    api_get,
+    api_post,
+    site_url: str,
+    date_from: str,
+    date_to: str,
+    output_dir: str = "",
+    branding_path: str = "",
+) -> str:
     data = collect_data(api_get, api_post, site_url, date_from, date_to)
     issues = detect_issues(data)
-    html_content = render_html(data, issues)
+    strategy = build_strategy(data, issues)
+    branding = load_branding(branding_path)
+    html_content = render_html(data, issues, strategy, branding)
 
     out_dir = Path(output_dir).expanduser() if output_dir else Path.home() / "gsc-reports"
     out_dir.mkdir(parents=True, exist_ok=True)

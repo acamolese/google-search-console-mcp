@@ -1,0 +1,20 @@
+{
+  "brand_name": "GSC Audit",
+  "logo": "",
+  "font_family": "Inter",
+  "font_url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+  "colors": {
+    "primary": "#4299e1",
+    "primary_dark": "#2b6cb0",
+    "secondary": "#9f7aea",
+    "accent": "#38a169",
+    "danger": "#e53e3e",
+    "warning": "#d69e2e",
+    "text": "#1a365d",
+    "text_muted": "#4a5568",
+    "text_light": "#718096",
+    "bg": "#f5f7fa",
+    "surface": "#ffffff",
+    "border": "#e2e8f0"
+  }
+}

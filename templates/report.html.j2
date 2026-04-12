@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Audit SEO - {{ data.site_url }}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% if branding.font_url %}<link rel="stylesheet" href="{{ branding.font_url }}">{% endif %}
+<style>
+:root {
+    --c-primary: {{ branding.colors.primary }};
+    --c-primary-dark: {{ branding.colors.primary_dark }};
+    --c-secondary: {{ branding.colors.secondary }};
+    --c-accent: {{ branding.colors.accent }};
+    --c-danger: {{ branding.colors.danger }};
+    --c-warning: {{ branding.colors.warning }};
+    --c-text: {{ branding.colors.text }};
+    --c-text-muted: {{ branding.colors.text_muted }};
+    --c-text-light: {{ branding.colors.text_light }};
+    --c-bg: {{ branding.colors.bg }};
+    --c-surface: {{ branding.colors.surface }};
+    --c-border: {{ branding.colors.border }};
+    --font-family: "{{ branding.font_family }}", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-family); background: var(--c-bg); color: var(--c-text); line-height: 1.5; }
+.container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+header { border-bottom: 3px solid var(--c-primary); padding-bottom: 24px; margin-bottom: 32px; display: flex; align-items: center; gap: 20px; }
+header .logo { max-height: 56px; max-width: 200px; }
+header .title-block { flex: 1; }
+h1 { font-size: 28px; color: var(--c-text); margin-bottom: 8px; font-weight: 700; }
+.subtitle { color: var(--c-text-muted); font-size: 15px; }
+.brand-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--c-text-light); margin-bottom: 4px; font-weight: 600; }
+h2 { font-size: 20px; color: var(--c-text); margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--c-border); font-weight: 600; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.kpi-card { background: var(--c-surface); border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.kpi-label { font-size: 12px; text-transform: uppercase; color: var(--c-text-light); letter-spacing: 0.5px; }
+.kpi-value { font-size: 28px; font-weight: 700; color: var(--c-text); margin-top: 4px; }
+.delta { display: inline-block; font-size: 12px; font-weight: 600; margin-top: 6px; }
+.delta.positive { color: var(--c-accent); }
+.delta.negative { color: var(--c-danger); }
+.delta.neutral { color: var(--c-text-light); }
+.chart-container { background: var(--c-surface); border-radius: 10px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 24px; height: 320px; }
+.chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.chart-row .chart-container { height: 280px; }
+table { width: 100%; background: var(--c-surface); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-collapse: collapse; }
+th { background: #edf2f7; text-align: left; padding: 12px 16px; font-size: 12px; text-transform: uppercase; color: var(--c-text-muted); font-weight: 600; letter-spacing: 0.5px; }
+td { padding: 12px 16px; border-top: 1px solid var(--c-border); font-size: 14px; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+td a { color: var(--c-primary); text-decoration: none; }
+td a:hover { text-decoration: underline; }
+td.positive { color: var(--c-accent); }
+code { background: #edf2f7; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+.status-ok { color: var(--c-accent); }
+.status-warn { color: var(--c-warning); }
+.status-err { color: var(--c-danger); }
+.issue { background: var(--c-surface); border-left: 4px solid; border-radius: 6px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.issue-high { border-color: var(--c-danger); }
+.issue-medium { border-color: var(--c-warning); }
+.issue-low { border-color: var(--c-primary); }
+.issue-header { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
+.issue-severity { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 10px; background: #edf2f7; color: var(--c-text-muted); }
+.issue-high .issue-severity { background: #fed7d7; color: #c53030; }
+.issue-medium .issue-severity { background: #feebc8; color: #c05621; }
+.issue-low .issue-severity { background: #bee3f8; color: var(--c-primary-dark); }
+.issue-category { font-size: 11px; color: var(--c-text-light); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.issue-title { font-size: 17px; font-weight: 600; margin: 4px 0 8px; color: var(--c-text); }
+.issue-desc { font-size: 14px; color: var(--c-text-muted); margin-bottom: 14px; }
+.issue-examples { margin: 14px 0; background: #f7fafc; border-radius: 6px; padding: 12px 14px; }
+.examples-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--c-text-light); font-weight: 600; margin-bottom: 8px; }
+.examples-table { width: 100%; background: transparent; box-shadow: none; border-radius: 0; }
+.examples-table th { background: transparent; padding: 6px 10px; font-size: 10px; color: #a0aec0; }
+.examples-table td { padding: 6px 10px; font-size: 12px; border-top: 1px solid var(--c-border); }
+.examples-table td.url-cell { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.issue-strategy { margin-top: 14px; background: #ebf8ff; border-left: 3px solid var(--c-primary); border-radius: 4px; padding: 12px 16px; }
+.strategy-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--c-primary-dark); font-weight: 700; margin-bottom: 8px; }
+.issue-strategy ol { padding-left: 20px; font-size: 13px; color: #2c5282; }
+.issue-strategy li { margin-bottom: 4px; line-height: 1.5; }
+.empty { text-align: center; color: var(--c-text-light); padding: 24px; background: var(--c-surface); border-radius: 10px; }
+footer { text-align: center; color: #a0aec0; font-size: 12px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--c-border); }
+.strategy-section { margin-top: 48px; padding-top: 32px; border-top: 4px solid var(--c-primary); }
+.strategy-section h2 { color: var(--c-text); font-size: 24px; border: none; margin-bottom: 8px; }
+.strategy-section h3 { font-size: 17px; color: var(--c-primary-dark); margin: 32px 0 10px; font-weight: 600; }
+.strategy-section .section-intro { font-size: 13px; color: var(--c-text-muted); margin-bottom: 14px; max-width: 780px; line-height: 1.55; }
+.exec-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 16px 0 8px; }
+.exec-card { background: var(--c-surface); border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.exec-card.highlight { background: linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%); border: 1px solid var(--c-primary); }
+.exec-label { font-size: 11px; text-transform: uppercase; color: var(--c-text-light); letter-spacing: 0.5px; font-weight: 600; }
+.exec-value { font-size: 26px; font-weight: 700; color: var(--c-text); margin: 4px 0 2px; }
+.exec-value.positive { color: var(--c-accent); }
+.exec-value.negative { color: var(--c-danger); }
+.exec-sub { font-size: 11px; color: #a0aec0; }
+.qw-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.qw-card { background: var(--c-surface); border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-top: 3px solid var(--c-primary); }
+.qw-tags { display: flex; gap: 6px; margin-bottom: 8px; }
+.qw-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 10px; letter-spacing: 0.3px; }
+.qw-tag.impact-high { background: #fed7d7; color: #c53030; }
+.qw-tag.impact-medium { background: #feebc8; color: #c05621; }
+.qw-tag.impact-low { background: #bee3f8; color: var(--c-primary-dark); }
+.qw-tag.effort-high { background: var(--c-border); color: var(--c-text-muted); }
+.qw-tag.effort-medium { background: #edf2f7; color: var(--c-text-light); }
+.qw-tag.effort-low { background: #c6f6d5; color: #276749; }
+.qw-title { font-size: 15px; font-weight: 600; color: var(--c-text); margin-bottom: 6px; }
+.qw-action { font-size: 13px; color: var(--c-text-muted); line-height: 1.5; }
+.themes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.theme-pill { background: var(--c-surface); border-radius: 8px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-left: 3px solid var(--c-secondary); }
+.theme-word { font-size: 15px; font-weight: 600; color: #553c9a; }
+.theme-stats { font-size: 11px; color: var(--c-text-light); margin-top: 2px; }
+.cann-list { display: grid; gap: 10px; }
+.cann-item { background: var(--c-surface); border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-left: 3px solid #ed8936; }
+.cann-query { font-size: 14px; color: var(--c-text); margin-bottom: 6px; }
+.cann-pages { list-style: none; padding-left: 0; margin: 4px 0 0; }
+.cann-pages li { font-size: 12px; color: var(--c-text-muted); padding: 3px 0; }
+.roadmap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px; }
+.roadmap-col { background: var(--c-surface); border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.roadmap-header { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 10px; border-radius: 4px; margin-bottom: 12px; display: inline-block; }
+.roadmap-30 { background: #fed7d7; color: #c53030; }
+.roadmap-60 { background: #feebc8; color: #c05621; }
+.roadmap-90 { background: #bee3f8; color: var(--c-primary-dark); }
+.roadmap-col ul { padding-left: 18px; font-size: 13px; color: var(--c-text-muted); }
+.roadmap-col li { margin-bottom: 6px; line-height: 1.5; }
+@media (max-width: 900px) { .exec-grid, .qw-grid, .themes-grid, .roadmap-grid, .kpi-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+    {% if branding.logo_data %}<img src="{{ branding.logo_data }}" alt="{{ branding.brand_name }}" class="logo">{% endif %}
+    <div class="title-block">
+        <div class="brand-tag">{{ branding.brand_name }} · SEO Audit</div>
+        <h1>{{ data.site_url }}</h1>
+        <div class="subtitle">Periodo: {{ data.date_from }} → {{ data.date_to }} · Confronto con {{ data.prev_from }} → {{ data.prev_to }}</div>
+    </div>
+</header>
+
+{# ========================== PERFORMANCE ========================== #}
+<h2>Performance generale</h2>
+<div class="kpi-grid">
+    {% for kpi in kpis %}
+    <div class="kpi-card">
+        <div class="kpi-label">{{ kpi.label }}</div>
+        <div class="kpi-value">{{ kpi.value }}</div>
+        {{ kpi.delta | safe }}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="chart-container"><canvas id="trendChart"></canvas></div>
+<div class="chart-row">
+    <div class="chart-container"><canvas id="deviceChart"></canvas></div>
+    <div class="chart-container"><canvas id="devicePosChart"></canvas></div>
+</div>
+
+{# ========================== ISSUES ========================== #}
+<h2>Criticità e opportunità</h2>
+{% if issues %}
+    {% for i in issues %}
+    <div class="issue issue-{{ i.severity }}">
+        <div class="issue-header">
+            <span class="issue-severity">{{ i.severity | upper }}</span>
+            {% if i.category %}<span class="issue-category">{{ i.category }}</span>{% endif %}
+        </div>
+        <div class="issue-title">{{ i.title }}</div>
+        <div class="issue-desc">{{ i.description }}</div>
+        {% if i.examples and i.examples.rows %}
+        <div class="issue-examples">
+            <div class="examples-label">Esempi ({{ i.examples.rows | length }})</div>
+            {{ render_example(i.examples) | safe }}
+        </div>
+        {% endif %}
+        {% if i.strategy %}
+        <div class="issue-strategy">
+            <div class="strategy-label">Strategia consigliata</div>
+            <ol>{% for s in i.strategy %}<li>{{ s }}</li>{% endfor %}</ol>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% else %}
+    <p class="empty">Nessuna criticità rilevata automaticamente.</p>
+{% endif %}
+
+{# ========================== DATA TABLES ========================== #}
+<h2>Top 30 query</h2>
+<table>
+    <thead><tr><th>Query</th><th style="text-align:right">Click</th><th style="text-align:right">Impression</th><th style="text-align:right">CTR</th><th style="text-align:right">Pos.</th></tr></thead>
+    <tbody>
+    {% for q in data.top_queries[:30] %}
+    <tr>
+        <td>{{ q["keys"][0] }}</td>
+        <td class="num">{{ "{:,}".format(q.clicks|int) }}</td>
+        <td class="num">{{ "{:,}".format(q.impressions|int) }}</td>
+        <td class="num">{{ "%.2f%%"|format(q.ctr*100) }}</td>
+        <td class="num">{{ "%.1f"|format(q.position) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Top 30 pagine</h2>
+<table>
+    <thead><tr><th>Pagina</th><th style="text-align:right">Click</th><th style="text-align:right">Impression</th><th style="text-align:right">CTR</th><th style="text-align:right">Pos.</th></tr></thead>
+    <tbody>
+    {% for p in data.top_pages[:30] %}
+    <tr>
+        <td><a href="{{ p["keys"][0] }}" target="_blank">{{ p["keys"][0] | shorten_url }}</a></td>
+        <td class="num">{{ "{:,}".format(p.clicks|int) }}</td>
+        <td class="num">{{ "{:,}".format(p.impressions|int) }}</td>
+        <td class="num">{{ "%.2f%%"|format(p.ctr*100) }}</td>
+        <td class="num">{{ "%.1f"|format(p.position) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Top paesi</h2>
+<table>
+    <thead><tr><th>Paese</th><th style="text-align:right">Click</th><th style="text-align:right">Impression</th><th style="text-align:right">CTR</th><th style="text-align:right">Pos.</th></tr></thead>
+    <tbody>
+    {% for c in data.countries %}
+    <tr>
+        <td>{{ c["keys"][0] | upper }}</td>
+        <td class="num">{{ "{:,}".format(c.clicks|int) }}</td>
+        <td class="num">{{ "{:,}".format(c.impressions|int) }}</td>
+        <td class="num">{{ "%.2f%%"|format(c.ctr*100) }}</td>
+        <td class="num">{{ "%.1f"|format(c.position) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Sitemap</h2>
+<table>
+    <thead><tr><th>Path</th><th style="text-align:right">Ultimo download</th><th style="text-align:right">Warning</th><th style="text-align:right">Errori</th></tr></thead>
+    <tbody>
+    {% for s in data.sitemaps %}
+    <tr>
+        <td><code>{{ s.path }}</code></td>
+        <td class="num">{{ (s.lastDownloaded or "")[:10] }}</td>
+        <td class="num {% if s.warnings|int > 0 %}status-warn{% endif %}">{{ s.warnings }}</td>
+        <td class="num {% if s.errors|int > 0 %}status-err{% endif %}">{{ s.errors }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Indicizzazione top 10 pagine</h2>
+<table>
+    <thead><tr><th>Pagina</th><th>Verdetto</th><th>Stato copertura</th></tr></thead>
+    <tbody>
+    {% for i in data.indexing %}
+    <tr>
+        <td><a href="{{ i.url }}" target="_blank">{{ i.url | shorten_url }}</a></td>
+        <td class="status-{{ 'ok' if i.verdict == 'PASS' else 'warn' }}"><strong>{{ i.verdict }}</strong></td>
+        <td>{{ i.coverageState }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{# ========================== STRATEGY ========================== #}
+<div class="strategy-section">
+<h2>Strategia consigliata</h2>
+
+<div class="exec-grid">
+    <div class="exec-card">
+        <div class="exec-label">Trend traffico</div>
+        <div class="exec-value {{ 'positive' if strategy.executive.trend_pct >= 0 else 'negative' }}">
+            {{ '▲' if strategy.executive.trend_pct >= 0 else '▼' }} {{ "%+.1f%%"|format(strategy.executive.trend_pct) }}
+        </div>
+        <div class="exec-sub">vs periodo precedente</div>
+    </div>
+    <div class="exec-card">
+        <div class="exec-label">Mix brand</div>
+        <div class="exec-value">{{ "%.0f"|format(strategy.executive.brand_pct) }}% / {{ "%.0f"|format(strategy.executive.non_brand_pct) }}%</div>
+        <div class="exec-sub">brand / non-brand</div>
+    </div>
+    <div class="exec-card">
+        <div class="exec-label">Criticità</div>
+        <div class="exec-value">{{ strategy.executive.high_issues }} <span style="font-size:14px;color:var(--c-warning)">+{{ strategy.executive.medium_issues }}</span></div>
+        <div class="exec-sub">alte / medie</div>
+    </div>
+    <div class="exec-card highlight">
+        <div class="exec-label">Uplift stimato</div>
+        <div class="exec-value positive">+{{ "{:,}".format(strategy.executive.total_uplift) }}</div>
+        <div class="exec-sub">click potenziali/periodo</div>
+    </div>
+</div>
+
+{% if strategy.quick_wins %}
+<h3>Quick wins prioritizzati ({{ strategy.quick_wins | length }})</h3>
+<div class="qw-grid">
+    {% for qw in strategy.quick_wins %}
+    <div class="qw-card">
+        <div class="qw-tags">
+            <span class="qw-tag impact-{{ qw.impact | lower }}">Impatto: {{ qw.impact }}</span>
+            <span class="qw-tag effort-{{ qw.effort | lower }}">Sforzo: {{ qw.effort }}</span>
+        </div>
+        <div class="qw-title">{{ qw.title }}</div>
+        <div class="qw-action">{{ qw.action }}</div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if strategy.page_two_wins %}
+{% set total_uplift = strategy.page_two_wins | sum(attribute='uplift') %}
+<h3>Opportunità pagina 2 — uplift stimato totale: +{{ "{:,}".format(total_uplift) }} click</h3>
+<p class="section-intro">Query già posizionate tra la posizione 11 e la 20. Portandole verso la top 10 si possono recuperare i click stimati di seguito (stima basata su CTR attesi per posizione).</p>
+<table>
+    <thead><tr><th>Query</th><th style="text-align:right">Impr.</th><th style="text-align:right">Pos.</th><th style="text-align:right">Click attuali</th><th style="text-align:right">Potenziale</th><th style="text-align:right">Uplift</th></tr></thead>
+    <tbody>
+    {% for w in strategy.page_two_wins %}
+    <tr>
+        <td>{{ w.query }}</td>
+        <td class="num">{{ "{:,}".format(w.impressions) }}</td>
+        <td class="num">{{ w.position }}</td>
+        <td class="num">{{ "{:,}".format(w.current_clicks) }}</td>
+        <td class="num">{{ "{:,}".format(w.potential_clicks) }}</td>
+        <td class="num positive"><strong>+{{ "{:,}".format(w.uplift) }}</strong></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if strategy.high_potential_pages %}
+<h3>Pagine con CTR sotto le attese</h3>
+<p class="section-intro">Pagine con un buon numero di impression ma CTR significativamente inferiore a quello atteso per la loro posizione media.</p>
+<table>
+    <thead><tr><th>URL</th><th style="text-align:right">Impr.</th><th style="text-align:right">Pos.</th><th style="text-align:right">CTR</th><th style="text-align:right">CTR atteso</th><th style="text-align:right">Uplift</th></tr></thead>
+    <tbody>
+    {% for p in strategy.high_potential_pages %}
+    <tr>
+        <td><a href="{{ p.url }}" target="_blank">{{ p.url | shorten_url }}</a></td>
+        <td class="num">{{ "{:,}".format(p.impressions) }}</td>
+        <td class="num">{{ p.position }}</td>
+        <td class="num">{{ p.ctr }}</td>
+        <td class="num">{{ p.expected_ctr }}</td>
+        <td class="num positive"><strong>+{{ "{:,}".format(p.uplift) }}</strong></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if strategy.top_themes %}
+<h3>Temi principali (traffico non-brand)</h3>
+<p class="section-intro">Parole chiave più frequenti nelle query non-brand. Ogni tema è un candidato per un hub di contenuti (pagina pillar + articoli di supporto).</p>
+<div class="themes-grid">
+    {% for t in strategy.top_themes %}
+    <div class="theme-pill">
+        <div class="theme-word">{{ t.theme }}</div>
+        <div class="theme-stats">{{ "{:,}".format(t.clicks) }} click · {{ t.query_count }} query · {{ "{:,}".format(t.impressions) }} impr.</div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if strategy.cannibalization %}
+<h3>Cannibalizzazione keyword ({{ strategy.cannibalization | length }} query coinvolte)</h3>
+<p class="section-intro">Query per cui Google mostra più pagine del sito, diluendo l'autorità. Consolidare il target di ogni query su una singola pagina principale.</p>
+<div class="cann-list">
+    {% for c in strategy.cannibalization %}
+    <div class="cann-item">
+        <div class="cann-query"><strong>{{ c.query }}</strong> — {{ c.page_count }} pagine, {{ "{:,}".format(c.total_clicks) }} click totali</div>
+        <ul class="cann-pages">
+            {% for p in c.pages %}
+            <li><code>{{ p.page | shorten_url }}</code> — {{ "{:,}".format(p.clicks|int) }} click, pos {{ "%.1f"|format(p.position) }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if strategy.questions %}
+<h3>Opportunità featured snippet</h3>
+<p class="section-intro">Query interrogative già posizionate che, con una risposta strutturata in 40-60 parole e schema FAQPage, possono conquistare lo snippet in posizione zero.</p>
+<table>
+    <thead><tr><th>Query</th><th style="text-align:right">Impr.</th><th style="text-align:right">CTR</th><th style="text-align:right">Pos.</th></tr></thead>
+    <tbody>
+    {% for q in strategy.questions %}
+    <tr>
+        <td>{{ q.query }}</td>
+        <td class="num">{{ "{:,}".format(q.impressions) }}</td>
+        <td class="num">{{ q.ctr }}</td>
+        <td class="num">{{ q.position }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if strategy.device_insights and strategy.device_insights.has_gap %}
+<h3>Gap performance mobile/desktop</h3>
+<p class="section-intro">Divario significativo tra la posizione media mobile ({{ strategy.device_insights.mobile_position }}) e desktop ({{ strategy.device_insights.desktop_position }}), delta {{ strategy.device_insights.gap }}. Il {{ "%.0f"|format(strategy.device_insights.mobile_share) }}% dei click arriva da mobile.</p>
+<p class="section-intro"><strong>Azione:</strong> verificare rendering mobile, Core Web Vitals (INP, LCP), layout shift, e contenuti nascosti dietro tap target. Su desktop valutare se il template mostra contenuti above-the-fold adeguati.</p>
+{% endif %}
+
+{% if strategy.geo_opportunities %}
+<h3>Opportunità geografiche</h3>
+<p class="section-intro">Paesi (oltre al principale) con CTR competitivo e volume sufficiente. Valutare localizzazione contenuti, hreflang o espansione commerciale.</p>
+<table>
+    <thead><tr><th>Paese</th><th style="text-align:right">Click</th><th style="text-align:right">Impr.</th><th style="text-align:right">CTR</th><th style="text-align:right">Pos.</th></tr></thead>
+    <tbody>
+    {% for g in strategy.geo_opportunities %}
+    <tr>
+        <td>{{ g.country }}</td>
+        <td class="num">{{ "{:,}".format(g.clicks) }}</td>
+        <td class="num">{{ "{:,}".format(g.impressions) }}</td>
+        <td class="num">{{ g.ctr }}</td>
+        <td class="num">{{ g.position }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<h3>Roadmap 30 / 60 / 90 giorni</h3>
+<div class="roadmap-grid">
+    <div class="roadmap-col">
+        <div class="roadmap-header roadmap-30">Primi 30 giorni · Urgente</div>
+        <ul>{% for a in strategy.roadmap['30'] %}<li>{{ a }}</li>{% endfor %}</ul>
+    </div>
+    <div class="roadmap-col">
+        <div class="roadmap-header roadmap-60">60 giorni · Medio termine</div>
+        <ul>{% for a in strategy.roadmap['60'] %}<li>{{ a }}</li>{% endfor %}</ul>
+    </div>
+    <div class="roadmap-col">
+        <div class="roadmap-header roadmap-90">90 giorni · Strategico</div>
+        <ul>{% for a in strategy.roadmap['90'] %}<li>{{ a }}</li>{% endfor %}</ul>
+    </div>
+</div>
+
+</div>{# /strategy-section #}
+
+<footer>Report generato da {{ branding.brand_name }} · Google Search Console MCP</footer>
+</div>
+
+<script>
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: {{ charts.trend_labels | tojson }},
+        datasets: [
+            { label: 'Click', data: {{ charts.trend_clicks | tojson }}, borderColor: '{{ branding.colors.primary }}', backgroundColor: 'rgba(66,153,225,0.1)', yAxisID: 'y', tension: 0.3, fill: true },
+            { label: 'Impression', data: {{ charts.trend_impressions | tojson }}, borderColor: '{{ branding.colors.secondary }}', backgroundColor: 'rgba(159,122,234,0.05)', yAxisID: 'y1', tension: 0.3, fill: false }
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { title: { display: true, text: 'Andamento giornaliero' } },
+        scales: {
+            y: { type: 'linear', position: 'left', title: { display: true, text: 'Click' } },
+            y1: { type: 'linear', position: 'right', title: { display: true, text: 'Impression' }, grid: { drawOnChartArea: false } }
+        }
+    }
+});
+
+new Chart(document.getElementById('deviceChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+        labels: {{ charts.device_labels | tojson }},
+        datasets: [{ data: {{ charts.device_clicks | tojson }}, backgroundColor: ['{{ branding.colors.primary }}','{{ branding.colors.secondary }}','#ed8936'] }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Click per dispositivo' } } }
+});
+
+new Chart(document.getElementById('devicePosChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: {{ charts.device_labels | tojson }},
+        datasets: [{ label: 'Posizione media', data: {{ charts.device_positions | tojson }}, backgroundColor: '{{ branding.colors.primary }}' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Posizione media per dispositivo' }, legend: { display: false } }, scales: { y: { reverse: true, beginAtZero: true } } }
+});
+</script>
+</body>
+</html>

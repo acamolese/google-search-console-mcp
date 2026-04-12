@@ -274,13 +274,14 @@ def gsc_audit(
     date_from: str,
     date_to: str,
     output_dir: str = "",
+    branding_path: str = "",
 ) -> str:
     """Generate a complete HTML SEO audit report for a Search Console property.
 
-    This tool runs multiple queries (overview, previous-period comparison, top queries,
-    top pages, devices, countries, daily trend, sitemaps, indexing check on top pages),
-    detects common issues (HTTP pages, pagination, low CTR, sitemap warnings, traffic
-    drops) and renders everything in a self-contained HTML report with Chart.js graphs.
+    Runs multiple queries (overview, previous-period comparison, top queries, top pages,
+    devices, countries, daily trend, sitemaps, indexing check), detects common issues,
+    builds an actionable strategy and renders everything in a self-contained HTML report
+    with Chart.js graphs. The report layout and colors can be customized via branding.json.
 
     IMPORTANT: If the user has not specified a date range, ask them before calling this
     tool. Do not assume defaults.
@@ -290,8 +291,9 @@ def gsc_audit(
         date_from: Start date (YYYY-MM-DD).
         date_to: End date (YYYY-MM-DD).
         output_dir: Directory where to save the HTML report. Defaults to ~/gsc-reports/.
+        branding_path: Optional path to a custom branding.json overriding the default one.
     """
-    path = generate_audit(_api_get, _api_post, site_url, date_from, date_to, output_dir)
+    path = generate_audit(_api_get, _api_post, site_url, date_from, date_to, output_dir, branding_path)
     return json.dumps({"report_path": path, "site_url": site_url, "date_from": date_from, "date_to": date_to})
 
 
