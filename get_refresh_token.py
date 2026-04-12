@@ -5,6 +5,7 @@ import http.server
 import urllib.parse
 import webbrowser
 import urllib.request
+from datetime import datetime, timedelta
 
 CREDENTIALS_FILE = "credentials/oauth_credentials.json"
 TOKEN_FILE = "credentials/token.json"
@@ -83,6 +84,9 @@ def main():
 
     with urllib.request.urlopen(req) as resp:
         token_response = json.loads(resp.read())
+
+    expires_in = int(token_response.get("expires_in", 3599))
+    token_response["expiry"] = (datetime.utcnow() + timedelta(seconds=expires_in - 60)).isoformat()
 
     with open(TOKEN_FILE, "w") as f:
         json.dump(token_response, f, indent=2)

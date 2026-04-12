@@ -3,5 +3,6 @@ credentials/token.json
 .venv/
 __pycache__/
 *.pyc
+*.egg-info/
 logs/
 .DS_Store
