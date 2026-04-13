@@ -1,92 +1,104 @@
 # Google Search Console MCP
 
-MCP (Model Context Protocol) server for **Google Search Console**. Query search performance data directly from the Search Console API through any MCP-compatible client.
+MCP (Model Context Protocol) server for **Google Search Console**. Query Search Console data and generate complete HTML SEO audit reports directly from any MCP-compatible client (Claude Code, Claude Desktop, Cursor, Zed, Continue, ...).
+
+## Features
+
+- **Read-only access** to Search Console (no write operations to your properties)
+- **8 tools** covering sites, queries, pages, devices, countries, indexing, sitemaps, URL inspection
+- **`gsc_audit`**: one-call generator for a self-contained HTML report with Chart.js graphs, automatic issue detection, concrete examples, actionable strategy and a 30/60/90-day roadmap
+- **Brandable reports**: customize logo, font, colors via `branding.json`
+- **Stateless-friendly**: credentials via environment variables, or XDG config dir
 
 ## Tools
 
 | Tool | Description |
-|------|-------------|
-| `search_console_sites` | List all verified sites in your Search Console account |
-| `search_console_query` | Search performance report with clicks, impressions, CTR, and position. Supports filtering by query, page, country, device, and date. |
+|---|---|
+| `gsc_sites` | List all verified sites |
+| `gsc_site_details` | Details of a specific site |
+| `gsc_query` | Performance report with dimensions (query, page, country, device, date) |
+| `gsc_performance_overview` | Aggregated metrics for a period (clicks, impressions, CTR, position) |
+| `gsc_indexing_issues` | Check indexing status for a list of pages |
+| `gsc_inspect_url` | Detailed URL Inspection for a single page |
+| `gsc_sitemaps` | List all sitemaps submitted for a site |
+| `gsc_audit` | Generate a complete HTML audit report for a date range |
 
-## Prerequisites
+## Installation
 
-- Python 3.10+
-- A Google Cloud project with the **Search Console API** enabled
-- OAuth 2.0 credentials (Desktop app type)
+### Option A — `uvx` (recommended, zero setup)
 
-## Setup
+Run directly from PyPI, no clone or venv required:
 
-### 1. Clone and install dependencies
+```bash
+uvx google-search-console-mcp auth      # one-time OAuth authorization
+uvx google-search-console-mcp            # start the MCP server
+```
+
+### Option B — `pipx`
+
+```bash
+pipx install google-search-console-mcp
+google-search-console-mcp auth
+google-search-console-mcp
+```
+
+### Option C — From source
 
 ```bash
 git clone https://github.com/acamolese/google-search-console-mcp.git
 cd google-search-console-mcp
-
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+uv venv && uv pip install -e .
+.venv/bin/google-search-console-mcp auth
 ```
 
-Or with `uv`:
+## Configuration
+
+### 1. Google Cloud setup
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → create a project
+2. Enable the **Google Search Console API**
+3. **APIs & Credentials** → **Create Credentials** → **OAuth 2.0 Client ID** → **Desktop app**
+4. Download the JSON
+
+### 2. Provide the OAuth client credentials
+
+You have three ways, pick whichever fits your setup. The server reads them in this order:
+
+**A — Environment variables** (best for headless, CI, Docker, hosted MCP):
 
 ```bash
-uv venv
-uv pip install -e .
+export GSC_CLIENT_ID="xxxxxxxxxxxx.apps.googleusercontent.com"
+export GSC_CLIENT_SECRET="GOCSPX-xxxxxxxxxxxxxxxx"
+export GSC_REFRESH_TOKEN="1//0xxxxxxxxxxxxxxxx"
 ```
 
-### 2. Configure credentials
+With these three variables set, the server is fully stateless: no files are read or written.
 
-Copy the example file and replace it with your actual OAuth credentials:
+**B — XDG config directory** (recommended for local desktop usage):
+
+Save the OAuth client JSON as:
+
+```
+~/.config/google-search-console-mcp/oauth_credentials.json
+```
+
+Then run the interactive authorization flow:
 
 ```bash
-cp credentials/oauth_credentials.example.json credentials/oauth_credentials.json
+google-search-console-mcp auth
 ```
 
-Download your OAuth 2.0 credentials from Google Cloud Console (APIs & Credentials, Desktop app type) and save the JSON as `credentials/oauth_credentials.json`.
+This opens a browser, captures the OAuth consent and saves the refresh token to `~/.config/google-search-console-mcp/token.json`. On Linux and macOS the path honors `$XDG_CONFIG_HOME` if set.
 
-### 3. Get a refresh token
+**C — Legacy per-project directory** (backward compatibility only):
 
-Run the helper script to authorize via browser:
+Place files under `./credentials/oauth_credentials.json` and `./credentials/token.json` in the working directory where the server is launched. This mode is still supported for older setups but not recommended.
 
-```bash
-python3 get_refresh_token.py
-```
+## Client configuration
 
-This will open your browser for Google OAuth consent, capture the authorization code, and save the token to `credentials/token.json`.
+All examples below assume you installed with `uvx`. Adjust the command if you used `pipx` (`google-search-console-mcp`) or cloned from source (`/path/to/.venv/bin/google-search-console-mcp`).
 
-### 4. Configure your MCP client
-
-Add the server to your MCP client configuration:
-
-```json
-{
-  "mcpServers": {
-    "google-search-console": {
-      "command": "/path/to/google-search-console-mcp/.venv/bin/python",
-      "args": ["/path/to/google-search-console-mcp/server.py"]
-    }
-  }
-}
-```
-
-Replace `/path/to/google-search-console-mcp` with the actual path where you cloned the repo.
-
-### 5. Test
-
-Start the server manually to verify it loads without errors:
-
-```bash
-python3 server.py
-```
-
-The server communicates over stdio, so it will appear to hang (that's expected). Press `Ctrl+C` to stop.
-
-## Usage with Claude
-
-Claude supports MCP servers natively in both the CLI (Claude Code) and the Desktop app.
-
-### Claude Code (CLI)
+### Claude Code
 
 Edit `~/.claude/.mcp.json`:
 
@@ -94,21 +106,14 @@ Edit `~/.claude/.mcp.json`:
 {
   "mcpServers": {
     "google-search-console": {
-      "command": "/path/to/google-search-console-mcp/.venv/bin/python",
-      "args": ["/path/to/google-search-console-mcp/server.py"]
+      "command": "uvx",
+      "args": ["google-search-console-mcp"]
     }
   }
 }
 ```
 
-Restart Claude Code after saving. The tools will appear automatically and you can ask things like:
-
-- "List my verified sites in Search Console"
-- "What are my top 50 search queries for example.com in the last 30 days?"
-- "Show me the pages with most impressions for sc-domain:example.com from 2026-01-01 to 2026-03-31"
-- "Break down search performance by country and device for the last week"
-
-### Claude Desktop App
+### Claude Desktop
 
 Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
@@ -116,35 +121,149 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 {
   "mcpServers": {
     "google-search-console": {
-      "command": "/path/to/google-search-console-mcp/.venv/bin/python",
-      "args": ["/path/to/google-search-console-mcp/server.py"]
+      "command": "uvx",
+      "args": ["google-search-console-mcp"]
     }
   }
 }
 ```
 
-Restart the Desktop app. You should see the MCP tools icon in the chat input area.
+### Cursor
+
+Edit `~/.cursor/mcp.json` (or the project-local `.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "google-search-console": {
+      "command": "uvx",
+      "args": ["google-search-console-mcp"]
+    }
+  }
+}
+```
+
+### Zed
+
+Add to your Zed `settings.json` under `context_servers`:
+
+```json
+{
+  "context_servers": {
+    "google-search-console": {
+      "command": {
+        "path": "uvx",
+        "args": ["google-search-console-mcp"]
+      }
+    }
+  }
+}
+```
+
+### Continue, Windsurf, and other MCP clients
+
+Any MCP client that supports stdio servers can use the same pattern:
+
+```json
+{
+  "mcpServers": {
+    "google-search-console": {
+      "command": "uvx",
+      "args": ["google-search-console-mcp"]
+    }
+  }
+}
+```
+
+### Stateless configuration with environment variables
+
+If you prefer not to persist anything on disk, pass credentials inline:
+
+```json
+{
+  "mcpServers": {
+    "google-search-console": {
+      "command": "uvx",
+      "args": ["google-search-console-mcp"],
+      "env": {
+        "GSC_CLIENT_ID": "xxxxxxxxxxxx.apps.googleusercontent.com",
+        "GSC_CLIENT_SECRET": "GOCSPX-xxxxxxxxxxxxxxxx",
+        "GSC_REFRESH_TOKEN": "1//0xxxxxxxxxxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+## Usage examples
+
+Once the MCP server is wired into your client, you can ask things like:
+
+- "List my verified sites in Search Console"
+- "Show the top 50 queries for `sc-domain:example.com` over the last 30 days"
+- "Check if these 5 pages are indexed: ..."
+- "Generate a complete audit of `example.com` for the period 2026-01-01 → 2026-03-31"
+
+The `gsc_audit` tool writes a self-contained HTML file to `~/gsc-reports/` and returns the path. Open it in any browser.
 
 ### Tips
 
 - Use `sc-domain:example.com` for domain properties or `https://example.com/` for URL-prefix properties.
-- Available dimensions: `query`, `page`, `country`, `device`, `date` (combine them with commas).
+- Available dimensions for `gsc_query`: `query`, `page`, `country`, `device`, `date` (combine with commas).
 - Maximum 25,000 rows per request.
 
-## Google Cloud Setup Guide
+## Customizing the audit report
 
-If you don't have a Google Cloud project yet:
+The audit report layout uses a Jinja2 template in `src/google_search_console_mcp/templates/report.html.j2` with colors and fonts driven by `branding.json`.
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project
-3. Enable the **Search Console API**
-4. Go to **APIs & Credentials** > **Create Credentials** > **OAuth 2.0 Client ID**
-5. Choose **Desktop app** as application type
-6. Download the JSON and save it as `credentials/oauth_credentials.json`
+To customize without touching the package, create your own `branding.json` in the XDG config directory:
+
+```
+~/.config/google-search-console-mcp/branding.json
+```
+
+Example:
+
+```json
+{
+  "brand_name": "Acme SEO Studio",
+  "logo": "logo.png",
+  "font_family": "Poppins",
+  "font_url": "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap",
+  "colors": {
+    "primary": "#ff6b35",
+    "primary_dark": "#cc4a1f",
+    "secondary": "#004e89",
+    "accent": "#00b894",
+    "danger": "#e74c3c",
+    "warning": "#f39c12",
+    "text": "#004e89",
+    "text_muted": "#5a6c7d",
+    "text_light": "#8395a7",
+    "bg": "#f8f9fc",
+    "surface": "#ffffff",
+    "border": "#e1e8ed"
+  }
+}
+```
+
+The `logo` field accepts either a local file name (resolved against the XDG config dir, then the package dir) or a full URL. Local files are automatically base64-encoded into the HTML so the report stays self-contained.
+
+You can also pass a custom branding file per report via the `branding_path` parameter of `gsc_audit`:
+
+> "Generate an audit of example.com using the branding at `/path/to/client-branding.json`"
 
 ## Security
 
-Credential files (`credentials/oauth_credentials.json`, `credentials/token.json`) are excluded via `.gitignore`. Never commit actual credentials to version control.
+- Never commit `oauth_credentials.json`, `token.json`, or `.env` files with real secrets.
+- The XDG config directory is the default storage location and is outside the repository.
+- The server only requests the `webmasters.readonly` scope.
+
+## Troubleshooting
+
+- **401 Unauthorized on first call**: token expired or missing. Run `google-search-console-mcp auth` or set `GSC_REFRESH_TOKEN`.
+- **"No OAuth client credentials found"**: neither env vars nor files are configured. See the Configuration section.
+- **Browser flow fails on headless machines**: skip `auth` entirely and export `GSC_CLIENT_ID`, `GSC_CLIENT_SECRET`, `GSC_REFRESH_TOKEN` as environment variables.
 
 ## License
 

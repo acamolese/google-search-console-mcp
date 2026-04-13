@@ -11,13 +11,15 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from . import config as app_config
+
 
 BASE = "https://www.googleapis.com/webmasters/v3"
 INSPECT_BASE = "https://searchconsole.googleapis.com/v1"
 
-PROJECT_DIR = Path(__file__).parent
-TEMPLATES_DIR = PROJECT_DIR / "templates"
-DEFAULT_BRANDING = PROJECT_DIR / "branding.json"
+PACKAGE_DIR = Path(__file__).parent
+TEMPLATES_DIR = PACKAGE_DIR / "templates"
+BUILTIN_BRANDING = PACKAGE_DIR / "branding.json"
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +80,9 @@ def _embed_logo(logo_value: str) -> str:
         return logo_value
     path = Path(logo_value).expanduser()
     if not path.is_absolute():
-        path = PROJECT_DIR / path
+        # Try XDG config dir first, then package dir
+        candidates = [app_config.config_dir() / path, PACKAGE_DIR / path]
+        path = next((c for c in candidates if c.exists()), path)
     if not path.exists():
         return ""
     mime, _ = mimetypes.guess_type(str(path))
@@ -87,15 +91,27 @@ def _embed_logo(logo_value: str) -> str:
     return f"data:{mime};base64,{encoded}"
 
 
+def _resolve_branding_path(branding_path: str) -> Path:
+    """Resolve the branding.json to use.
+
+    Priority: explicit argument > XDG config > builtin default.
+    """
+    if branding_path:
+        return Path(branding_path).expanduser()
+    user_override = app_config.config_dir() / "branding.json"
+    if user_override.exists():
+        return user_override
+    return BUILTIN_BRANDING
+
+
 def load_branding(branding_path: str = "") -> dict:
     """Load branding config from JSON, falling back to defaults."""
     import copy
     branding = copy.deepcopy(DEFAULT_BRANDING_DICT)
-    path = Path(branding_path).expanduser() if branding_path else DEFAULT_BRANDING
+    path = _resolve_branding_path(branding_path)
     if path.exists():
         try:
             user = json.loads(path.read_text(encoding="utf-8"))
-            # Shallow merge with colors nested
             if "colors" in user:
                 branding["colors"].update(user.pop("colors"))
             branding.update(user)

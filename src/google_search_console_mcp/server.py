@@ -4,14 +4,12 @@ import json
 import urllib.parse
 import urllib.request
 from datetime import datetime
-from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 from google.oauth2.credentials import Credentials
 
-from audit import generate_audit
-
-CREDS_DIR = Path(__file__).parent / "credentials"
+from . import config
+from .audit import generate_audit
 
 MCP_INSTRUCTIONS = """Google Search Console MCP Server.
 
@@ -26,21 +24,16 @@ mcp = FastMCP("google-search-console", instructions=MCP_INSTRUCTIONS)
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Credential helpers
 # ---------------------------------------------------------------------------
 
-TOKEN_FILE = CREDS_DIR / "token.json"
-
-
 def _google_credentials() -> Credentials:
-    with open(CREDS_DIR / "oauth_credentials.json") as f:
-        oauth = json.load(f)["installed"]
-    with open(TOKEN_FILE) as f:
-        token = json.load(f)
+    oauth = config.load_oauth_client()
+    token = config.load_token()
     creds = Credentials(
         token=token.get("access_token"),
         refresh_token=token["refresh_token"],
-        token_uri=oauth["token_uri"],
+        token_uri=oauth.get("token_uri", "https://oauth2.googleapis.com/token"),
         client_id=oauth["client_id"],
         client_secret=oauth["client_secret"],
         scopes=[
@@ -53,19 +46,9 @@ def _google_credentials() -> Credentials:
         except ValueError:
             creds.expiry = datetime(1970, 1, 1)
     else:
-        # Force a refresh for legacy token files without an expiry field
+        # Force a refresh for tokens without an expiry field (env vars, legacy files)
         creds.expiry = datetime(1970, 1, 1)
     return creds
-
-
-def _save_token(credentials: Credentials) -> None:
-    with open(TOKEN_FILE) as f:
-        existing = json.load(f)
-    existing["access_token"] = credentials.token
-    if credentials.expiry:
-        existing["expiry"] = credentials.expiry.isoformat()
-    with open(TOKEN_FILE, "w") as f:
-        json.dump(existing, f, indent=2)
 
 
 def _get_token() -> str:
@@ -73,7 +56,7 @@ def _get_token() -> str:
     credentials = _google_credentials()
     if not credentials.valid:
         credentials.refresh(Request())
-        _save_token(credentials)
+        config.update_saved_token(credentials.token, credentials.expiry)
     return credentials.token
 
 

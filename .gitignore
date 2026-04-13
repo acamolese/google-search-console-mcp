@@ -4,5 +4,7 @@ credentials/token.json
 __pycache__/
 *.pyc
 *.egg-info/
+build/
+dist/
 logs/
 .DS_Store
