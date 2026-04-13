@@ -30,16 +30,16 @@ MCP (Model Context Protocol) server for **Google Search Console**. Query Search 
 Run directly from PyPI, no clone or venv required:
 
 ```bash
-uvx google-search-console-mcp auth      # one-time OAuth authorization
-uvx google-search-console-mcp            # start the MCP server
+uvx mcp-google-search-console auth      # one-time OAuth authorization
+uvx mcp-google-search-console            # start the MCP server
 ```
 
 ### Option B — `pipx`
 
 ```bash
-pipx install google-search-console-mcp
-google-search-console-mcp auth
-google-search-console-mcp
+pipx install mcp-google-search-console
+mcp-google-search-console auth
+mcp-google-search-console
 ```
 
 ### Option C — From source
@@ -48,7 +48,7 @@ google-search-console-mcp
 git clone https://github.com/acamolese/google-search-console-mcp.git
 cd google-search-console-mcp
 uv venv && uv pip install -e .
-.venv/bin/google-search-console-mcp auth
+.venv/bin/mcp-google-search-console auth
 ```
 
 ## Configuration
@@ -79,16 +79,16 @@ With these three variables set, the server is fully stateless: no files are read
 Save the OAuth client JSON as:
 
 ```
-~/.config/google-search-console-mcp/oauth_credentials.json
+~/.config/mcp-google-search-console/oauth_credentials.json
 ```
 
 Then run the interactive authorization flow:
 
 ```bash
-google-search-console-mcp auth
+mcp-google-search-console auth
 ```
 
-This opens a browser, captures the OAuth consent and saves the refresh token to `~/.config/google-search-console-mcp/token.json`. On Linux and macOS the path honors `$XDG_CONFIG_HOME` if set.
+This opens a browser, captures the OAuth consent and saves the refresh token to `~/.config/mcp-google-search-console/token.json`. On Linux and macOS the path honors `$XDG_CONFIG_HOME` if set.
 
 **C — Legacy per-project directory** (backward compatibility only):
 
@@ -96,7 +96,7 @@ Place files under `./credentials/oauth_credentials.json` and `./credentials/toke
 
 ## Client configuration
 
-All examples below assume you installed with `uvx`. Adjust the command if you used `pipx` (`google-search-console-mcp`) or cloned from source (`/path/to/.venv/bin/google-search-console-mcp`).
+All examples below assume you installed with `uvx`. Adjust the command if you used `pipx` (`mcp-google-search-console`) or cloned from source (`/path/to/.venv/bin/mcp-google-search-console`).
 
 ### Claude Code
 
@@ -107,7 +107,7 @@ Edit `~/.claude/.mcp.json`:
   "mcpServers": {
     "google-search-console": {
       "command": "uvx",
-      "args": ["google-search-console-mcp"]
+      "args": ["mcp-google-search-console"]
     }
   }
 }
@@ -122,7 +122,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
   "mcpServers": {
     "google-search-console": {
       "command": "uvx",
-      "args": ["google-search-console-mcp"]
+      "args": ["mcp-google-search-console"]
     }
   }
 }
@@ -137,7 +137,7 @@ Edit `~/.cursor/mcp.json` (or the project-local `.cursor/mcp.json`):
   "mcpServers": {
     "google-search-console": {
       "command": "uvx",
-      "args": ["google-search-console-mcp"]
+      "args": ["mcp-google-search-console"]
     }
   }
 }
@@ -153,7 +153,7 @@ Add to your Zed `settings.json` under `context_servers`:
     "google-search-console": {
       "command": {
         "path": "uvx",
-        "args": ["google-search-console-mcp"]
+        "args": ["mcp-google-search-console"]
       }
     }
   }
@@ -169,7 +169,7 @@ Any MCP client that supports stdio servers can use the same pattern:
   "mcpServers": {
     "google-search-console": {
       "command": "uvx",
-      "args": ["google-search-console-mcp"]
+      "args": ["mcp-google-search-console"]
     }
   }
 }
@@ -184,7 +184,7 @@ If you prefer not to persist anything on disk, pass credentials inline:
   "mcpServers": {
     "google-search-console": {
       "command": "uvx",
-      "args": ["google-search-console-mcp"],
+      "args": ["mcp-google-search-console"],
       "env": {
         "GSC_CLIENT_ID": "xxxxxxxxxxxx.apps.googleusercontent.com",
         "GSC_CLIENT_SECRET": "GOCSPX-xxxxxxxxxxxxxxxx",
@@ -219,7 +219,7 @@ The audit report layout uses a Jinja2 template in `src/google_search_console_mcp
 To customize without touching the package, create your own `branding.json` in the XDG config directory:
 
 ```
-~/.config/google-search-console-mcp/branding.json
+~/.config/mcp-google-search-console/branding.json
 ```
 
 Example:
@@ -261,7 +261,7 @@ You can also pass a custom branding file per report via the `branding_path` para
 
 ## Troubleshooting
 
-- **401 Unauthorized on first call**: token expired or missing. Run `google-search-console-mcp auth` or set `GSC_REFRESH_TOKEN`.
+- **401 Unauthorized on first call**: token expired or missing. Run `mcp-google-search-console auth` or set `GSC_REFRESH_TOKEN`.
 - **"No OAuth client credentials found"**: neither env vars nor files are configured. See the Configuration section.
 - **Browser flow fails on headless machines**: skip `auth` entirely and export `GSC_CLIENT_ID`, `GSC_CLIENT_SECRET`, `GSC_REFRESH_TOKEN` as environment variables.
 

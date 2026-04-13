@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "google-search-console-mcp"
+name = "mcp-google-search-console"
 version = "2.0.0"
 description = "MCP server for Google Search Console with automated SEO audit reports"
 readme = "README.md"
@@ -39,18 +39,14 @@ Repository = "https://github.com/acamolese/google-search-console-mcp"
 Issues = "https://github.com/acamolese/google-search-console-mcp/issues"
 
 [project.scripts]
-google-search-console-mcp = "google_search_console_mcp.__main__:main"
+mcp-google-search-console = "google_search_console_mcp.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/google_search_console_mcp"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"src/google_search_console_mcp/templates" = "google_search_console_mcp/templates"
-"src/google_search_console_mcp/branding.json" = "google_search_console_mcp/branding.json"
-
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/google_search_console_mcp",
+    "src/google_search_console_mcp/**",
     "README.md",
     "LICENSE",
     "pyproject.toml",

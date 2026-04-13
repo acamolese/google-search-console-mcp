@@ -1,9 +1,9 @@
 """Command-line entry point for the Google Search Console MCP server.
 
 Usage:
-    google-search-console-mcp              # start the MCP server (default)
-    google-search-console-mcp serve        # start the MCP server
-    google-search-console-mcp auth         # run the OAuth authorization flow
+    mcp-google-search-console              # start the MCP server (default)
+    mcp-google-search-console serve        # start the MCP server
+    mcp-google-search-console auth         # run the OAuth authorization flow
 
 The same entry point dispatches both the server and the auth helper so that
 users installing via `pip`, `pipx` or `uvx` only need one command.

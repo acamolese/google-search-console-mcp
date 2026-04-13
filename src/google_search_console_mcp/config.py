@@ -21,7 +21,8 @@ from datetime import datetime
 from pathlib import Path
 
 
-APP_NAME = "google-search-console-mcp"
+APP_NAME = "mcp-google-search-console"
+LEGACY_APP_NAMES = ("google-search-console-mcp",)
 
 
 # ---------------------------------------------------------------------------
@@ -42,9 +43,23 @@ def config_dir() -> Path:
     return path
 
 
+def legacy_xdg_dirs() -> list[Path]:
+    """Old XDG directory names used by previous versions of the package."""
+    home = xdg_config_home()
+    return [home / name for name in LEGACY_APP_NAMES]
+
+
 def legacy_creds_dir() -> Path:
     """Legacy credentials directory (relative to CWD, pre-2.0 layout)."""
     return Path.cwd() / "credentials"
+
+
+def _credential_search_paths(filename: str) -> list[Path]:
+    """All possible locations for a credential file, in priority order."""
+    paths = [config_dir() / filename]
+    paths.extend(d / filename for d in legacy_xdg_dirs())
+    paths.append(legacy_creds_dir() / filename)
+    return paths
 
 
 # ---------------------------------------------------------------------------
@@ -83,15 +98,14 @@ def load_oauth_client() -> dict:
     if env_data:
         return env_data
 
-    for candidate in (config_dir() / "oauth_credentials.json", legacy_creds_dir() / "oauth_credentials.json"):
+    for candidate in _credential_search_paths("oauth_credentials.json"):
         data = _oauth_from_file(candidate)
         if data:
             return data
 
     raise FileNotFoundError(
         "No OAuth client credentials found. Set GSC_CLIENT_ID and GSC_CLIENT_SECRET "
-        f"environment variables, or place oauth_credentials.json in {config_dir()}/ "
-        f"or {legacy_creds_dir()}/."
+        f"environment variables, or place oauth_credentials.json in {config_dir()}/."
     )
 
 
@@ -124,14 +138,11 @@ def _token_from_file(path: Path) -> dict | None:
 
 def token_file_path() -> Path:
     """Preferred path where a refreshed token should be written."""
-    xdg = config_dir() / "token.json"
-    if xdg.exists():
-        return xdg
-    legacy = legacy_creds_dir() / "token.json"
-    if legacy.exists():
-        return legacy
-    # Default to XDG for new installations
-    return xdg
+    for candidate in _credential_search_paths("token.json"):
+        if candidate.exists():
+            return candidate
+    # Default to current XDG dir for new installations
+    return config_dir() / "token.json"
 
 
 def load_token() -> dict:
@@ -140,14 +151,14 @@ def load_token() -> dict:
     if env_data:
         return env_data
 
-    for candidate in (config_dir() / "token.json", legacy_creds_dir() / "token.json"):
+    for candidate in _credential_search_paths("token.json"):
         data = _token_from_file(candidate)
         if data:
             return data
 
     raise FileNotFoundError(
         "No OAuth token found. Set GSC_REFRESH_TOKEN environment variable, or run "
-        "`google-search-console-mcp auth` to authorize the app and generate one."
+        "`mcp-google-search-console auth` to authorize the app and generate one."
     )
 
 

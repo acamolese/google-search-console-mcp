@@ -105,7 +105,7 @@ def run_oauth_flow() -> None:
     print(f"\nToken saved to {token_path}")
     print(f"Refresh token: {token_response.get('refresh_token', 'NOT PRESENT')}")
     print(
-        "\nYou can now run `google-search-console-mcp` to start the MCP server, or "
+        "\nYou can now run `mcp-google-search-console` to start the MCP server, or "
         "export GSC_REFRESH_TOKEN for a stateless setup."
     )
 
