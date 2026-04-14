@@ -23,6 +23,25 @@ MCP (Model Context Protocol) server for **Google Search Console**. Query Search 
 | `gsc_sitemaps` | List all sitemaps submitted for a site |
 | `gsc_audit` | Generate a complete HTML audit report for a date range |
 
+## Upgrade notice (pre-`f2fe60e` installs)
+
+The package was restructured in commit `f2fe60e` and no longer ships a top-level `server.py`. If your MCP client was configured to launch the server with `python server.py`, it will now fail at startup with:
+
+```
+can't open file '.../server.py': [Errno 2] No such file or directory
+```
+
+Update your client config to use the installed entry-point instead:
+
+```json
+"google-search-console": {
+  "command": "uvx",
+  "args": ["mcp-google-search-console"]
+}
+```
+
+Equivalent forms are listed under [Client configuration](#client-configuration).
+
 ## Installation
 
 ### Option A — `uvx` (recommended, zero setup)
