@@ -1,14 +1,31 @@
-# Google Search Console MCP
+# Google Search Console MCP Server
 
-MCP (Model Context Protocol) server for **Google Search Console**. Query Search Console data and generate complete HTML SEO audit reports directly from any MCP-compatible client (Claude Code, Claude Desktop, Cursor, Zed, Continue, ...).
+[![PyPI version](https://img.shields.io/pypi/v/mcp-google-search-console.svg)](https://pypi.org/project/mcp-google-search-console/)
+[![Python versions](https://img.shields.io/pypi/pyversions/mcp-google-search-console.svg)](https://pypi.org/project/mcp-google-search-console/)
+[![License: MIT](https://img.shields.io/pypi/l/mcp-google-search-console.svg)](https://github.com/acamolese/google-search-console-mcp/blob/main/LICENSE)
+[![PyPI downloads](https://img.shields.io/pypi/dm/mcp-google-search-console.svg)](https://pypi.org/project/mcp-google-search-console/)
+
+Open-source **Model Context Protocol (MCP) server for Google Search Console**. Brings your Search Console performance data, URL inspection, indexing checks, and sitemaps into Claude Code, Claude Desktop, Cursor, Zed, Continue, and any MCP-compatible client, and generates complete brandable HTML **SEO audit reports** in a single call.
+
+If you work with SEO and use an AI coding assistant, this MCP server removes the copy-paste loop between Search Console and your chat: ask for top queries, check which pages are indexed, inspect a URL, or produce a 30/60/90-day SEO roadmap as an HTML report, all without leaving the assistant.
 
 ## Features
 
-- **Read-only access** to Search Console (no write operations to your properties)
-- **8 tools** covering sites, queries, pages, devices, countries, indexing, sitemaps, URL inspection
-- **`gsc_audit`**: one-call generator for a self-contained HTML report with Chart.js graphs, automatic issue detection, concrete examples, actionable strategy and a 30/60/90-day roadmap
-- **Brandable reports**: customize logo, font, colors via `branding.json`
-- **Stateless-friendly**: credentials via environment variables, or XDG config dir
+- **Read-only access** to Search Console (no write operations to your properties, only the `webmasters.readonly` OAuth scope)
+- **8 tools** covering sites, performance queries, pages, devices, countries, indexing, sitemaps, URL inspection
+- **`gsc_audit`**: one-call generator for a self-contained HTML SEO report with Chart.js graphs, automatic issue detection, concrete examples, actionable strategy and a 30/60/90-day roadmap
+- **Brandable reports**: customize logo, font, and color palette via `branding.json`, perfect for agencies delivering white-label audits
+- **Stateless-friendly**: credentials via environment variables (ideal for CI, Docker, hosted MCP) or via the XDG config directory
+- **Zero setup with `uvx`**: no clone, no virtualenv, runs straight from PyPI
+- **Works with any MCP client**: Claude Code, Claude Desktop, Cursor, Zed, Continue, Windsurf
+
+## Why use this MCP server
+
+- Skip the Search Console UI when you already live inside your AI assistant
+- Turn GSC data into a shareable client-ready HTML audit in a single prompt
+- Keep full control over credentials: choose env vars, XDG config, or legacy file layout
+- Safe by design: read-only scope means the server cannot edit or remove anything from your properties
+- Python 3.10+, MIT licensed, published on PyPI as [`mcp-google-search-console`](https://pypi.org/project/mcp-google-search-console/)
 
 ## Tools
 
@@ -22,25 +39,6 @@ MCP (Model Context Protocol) server for **Google Search Console**. Query Search 
 | `gsc_inspect_url` | Detailed URL Inspection for a single page |
 | `gsc_sitemaps` | List all sitemaps submitted for a site |
 | `gsc_audit` | Generate a complete HTML audit report for a date range |
-
-## Upgrade notice (pre-`f2fe60e` installs)
-
-The package was restructured in commit `f2fe60e` and no longer ships a top-level `server.py`. If your MCP client was configured to launch the server with `python server.py`, it will now fail at startup with:
-
-```
-can't open file '.../server.py': [Errno 2] No such file or directory
-```
-
-Update your client config to use the installed entry-point instead:
-
-```json
-"google-search-console": {
-  "command": "uvx",
-  "args": ["mcp-google-search-console"]
-}
-```
-
-Equivalent forms are listed under [Client configuration](#client-configuration).
 
 ## Installation
 
@@ -272,6 +270,44 @@ You can also pass a custom branding file per report via the `branding_path` para
 
 > "Generate an audit of example.com using the branding at `/path/to/client-branding.json`"
 
+## FAQ
+
+### What is an MCP server?
+
+MCP (Model Context Protocol) is an open protocol that lets AI assistants like Claude or Cursor talk to external data sources and tools through a standard interface. An MCP server exposes a set of tools (functions) and resources that the assistant can call during a conversation. This project is an MCP server that exposes Google Search Console as tools your assistant can use.
+
+### Does this work with Claude Desktop, Claude Code, Cursor, Zed, and Continue?
+
+Yes. Anything that can speak MCP over stdio can use this server. Ready-to-paste configuration snippets for each client are in [Client configuration](#client-configuration).
+
+### Can this server change or delete data in my Search Console account?
+
+No. The server only requests the `webmasters.readonly` scope from Google, which is read-only by design. It cannot submit sitemaps, request indexing, or modify any property settings.
+
+### How do I obtain the OAuth client credentials?
+
+Create a Google Cloud project, enable the Google Search Console API, then create an **OAuth 2.0 Client ID** of type **Desktop app** and download the JSON. Full steps are in the [Configuration](#configuration) section.
+
+### Can I use a service account instead of OAuth?
+
+Not currently. The Search Console API requires that the identity has been granted access to the property, and Google's own docs recommend OAuth user credentials for most use cases. If you need service account support, open an issue.
+
+### Can I customize the SEO audit report?
+
+Yes. Drop a `branding.json` file in `~/.config/mcp-google-search-console/` to override logo, font, and the full color palette. See [Customizing the audit report](#customizing-the-audit-report). You can also pass a per-report `branding_path` parameter when calling `gsc_audit`, which is ideal for agencies producing white-label audits for multiple clients.
+
+### Where are the audit reports saved?
+
+`gsc_audit` writes a self-contained HTML file to `~/gsc-reports/` and returns the path. The file is fully inlined (CSS, charts, images base64-encoded) so you can share it without worrying about external assets.
+
+### What's the difference between `sc-domain:` and URL-prefix properties?
+
+`sc-domain:example.com` covers the entire domain, including all subdomains and both `http`/`https`. `https://example.com/` only covers that specific prefix. Use whichever matches how you verified the property in Search Console.
+
+### Does it work on headless servers or in Docker?
+
+Yes. Set `GSC_CLIENT_ID`, `GSC_CLIENT_SECRET`, `GSC_REFRESH_TOKEN` as environment variables and skip the browser `auth` flow. The server is fully stateless in this mode and never writes to disk.
+
 ## Security
 
 - Never commit `oauth_credentials.json`, `token.json`, or `.env` files with real secrets.
@@ -284,6 +320,25 @@ You can also pass a custom branding file per report via the `branding_path` para
 - **"No OAuth client credentials found"**: neither env vars nor files are configured. See the Configuration section.
 - **Browser flow fails on headless machines**: skip `auth` entirely and export `GSC_CLIENT_ID`, `GSC_CLIENT_SECRET`, `GSC_REFRESH_TOKEN` as environment variables.
 
+## Migration from legacy installs (pre-`f2fe60e`)
+
+The package was restructured in commit `f2fe60e` and no longer ships a top-level `server.py`. If your MCP client was configured to launch the server with `python server.py`, it will now fail at startup with:
+
+```
+can't open file '.../server.py': [Errno 2] No such file or directory
+```
+
+Update your client config to use the installed entry-point instead:
+
+```json
+"google-search-console": {
+  "command": "uvx",
+  "args": ["mcp-google-search-console"]
+}
+```
+
+Equivalent forms are listed under [Client configuration](#client-configuration).
+
 ## License
 
-MIT
+[MIT](LICENSE) © Andrea Camolese. Not affiliated with Google or Anthropic. "Google Search Console" is a trademark of Google LLC.
