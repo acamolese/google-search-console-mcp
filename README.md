@@ -1,3 +1,5 @@
+<!-- mcp-name: io.github.acamolese/google-search-console-mcp -->
+
 # Google Search Console MCP Server
 
 [![PyPI version](https://img.shields.io/pypi/v/mcp-google-search-console.svg)](https://pypi.org/project/mcp-google-search-console/)

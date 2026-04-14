@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.acamolese/google-search-console-mcp",
+  "title": "Google Search Console",
+  "description": "MCP server for Google Search Console: query performance data, inspect URLs, check indexing, list sitemaps, and generate brandable HTML SEO audit reports with a 30/60/90-day roadmap. Works with Claude, Cursor, Zed, and any MCP client. Read-only OAuth scope.",
+  "repository": {
+    "url": "https://github.com/acamolese/google-search-console-mcp",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/acamolese/google-search-console-mcp",
+  "version": "2.0.2",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "mcp-google-search-console",
+      "version": "2.0.2",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
