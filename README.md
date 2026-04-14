@@ -5,6 +5,8 @@
 [![License: MIT](https://img.shields.io/pypi/l/mcp-google-search-console.svg)](https://github.com/acamolese/google-search-console-mcp/blob/main/LICENSE)
 [![PyPI downloads](https://img.shields.io/pypi/dm/mcp-google-search-console.svg)](https://pypi.org/project/mcp-google-search-console/)
 
+Read this in: **English** | [Italiano](README.it.md)
+
 Open-source **Model Context Protocol (MCP) server for Google Search Console**. Brings your Search Console performance data, URL inspection, indexing checks, and sitemaps into Claude Code, Claude Desktop, Cursor, Zed, Continue, and any MCP-compatible client, and generates complete brandable HTML **SEO audit reports** in a single call.
 
 If you work with SEO and use an AI coding assistant, this MCP server removes the copy-paste loop between Search Console and your chat: ask for top queries, check which pages are indexed, inspect a URL, or produce a 30/60/90-day SEO roadmap as an HTML report, all without leaving the assistant.
