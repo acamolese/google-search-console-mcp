@@ -1,0 +1,28 @@
+name: Feature request
+description: Propose a new tool, improvement, or enhancement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case. Who benefits and how?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: The behaviour you would like. If it is a new MCP tool, sketch its name, parameters, and expected output.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you evaluated and why they are worse.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Links, screenshots, Google Search Console API references, anything else useful.

@@ -6,6 +6,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/mcp-google-search-console.svg)](https://pypi.org/project/mcp-google-search-console/)
 [![License: MIT](https://img.shields.io/pypi/l/mcp-google-search-console.svg)](https://github.com/acamolese/google-search-console-mcp/blob/main/LICENSE)
 [![PyPI downloads](https://img.shields.io/pypi/dm/mcp-google-search-console.svg)](https://pypi.org/project/mcp-google-search-console/)
+[![CI](https://github.com/acamolese/google-search-console-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/acamolese/google-search-console-mcp/actions/workflows/ci.yml)
 
 Read this in: **English** | [Italiano](README.it.md)
 

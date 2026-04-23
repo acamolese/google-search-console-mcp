@@ -8,3 +8,19 @@ build/
 dist/
 logs/
 .DS_Store
+
+# MCP registry publish tokens (never commit)
+.mcpregistry_*_token
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
