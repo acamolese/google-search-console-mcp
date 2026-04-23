@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/acamolese/google-search-console-mcp",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "mcp-google-search-console",
-      "version": "2.0.2",
+      "version": "2.0.3",
       "transport": {
         "type": "stdio"
       }

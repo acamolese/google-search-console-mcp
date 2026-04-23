@@ -183,11 +183,35 @@ def gsc_performance_overview(site_url: str, date_from: str, date_to: str) -> str
 
 @mcp.tool()
 def gsc_indexing_issues(site_url: str, pages: list[str]) -> str:
-    """Check if pages have indexing problems using the URL Inspection API.
+    """Bulk indexing check for multiple pages using the URL Inspection API.
+
+    Use this tool to quickly verify whether a batch of URLs is indexed by Google and
+    spot common issues (blocked by robots.txt, crawl errors, page-fetch failures, not
+    yet indexed). For each URL it returns a compact summary; to get the full
+    inspection payload (mobile usability, rich results, AMP) for a single page, use
+    `gsc_inspect_url` instead.
+
+    Quota note: the URL Inspection API enforces ~60 requests per minute and
+    ~2000 per day per property. Keep the `pages` list reasonable in size.
 
     Args:
-        site_url: Site URL (e.g. "https://example.com/" or "sc-domain:example.com").
-        pages: List of page URLs to check.
+        site_url: Verified property URL. Domain property format "sc-domain:example.com"
+            or URL-prefix format "https://example.com/".
+        pages: List of fully qualified page URLs to check. They must belong to the
+            `site_url` property.
+
+    Returns:
+        JSON array, one entry per input URL, each with:
+        - url: the input URL
+        - verdict: one of PASS, PARTIAL, FAIL, NEUTRAL, VERDICT_UNSPECIFIED
+        - coverageState: human-readable coverage description
+        - robotsTxtState: e.g. ALLOWED / DISALLOWED
+        - indexingState: e.g. INDEXING_ALLOWED / BLOCKED_BY_META_TAG
+        - lastCrawlTime: ISO-8601 timestamp of Google's last crawl attempt
+        - pageFetchState: SUCCESSFUL / SOFT_404 / ACCESS_DENIED / etc.
+        - crawledAs: DESKTOP / MOBILE
+        If a single URL fails, its entry contains an `error` field instead of the
+        fields above; the rest of the batch still returns normally.
     """
     results = []
     for page in pages:
@@ -215,11 +239,31 @@ def gsc_indexing_issues(site_url: str, pages: list[str]) -> str:
 
 @mcp.tool()
 def gsc_inspect_url(site_url: str, page_url: str) -> str:
-    """Detailed URL inspection for a specific page.
+    """Full URL Inspection for a single page (index + mobile + rich results + AMP).
+
+    Returns the complete `inspectionResult` payload from Google's URL Inspection API,
+    including index coverage, mobile usability, rich-results / structured-data
+    eligibility, and AMP status when present. Use this when you need deep detail for
+    one URL; for a quick indexed-or-not check across many URLs use
+    `gsc_indexing_issues` instead.
+
+    Quota note: the URL Inspection API enforces ~60 requests per minute and
+    ~2000 per day per property.
 
     Args:
-        site_url: Site URL (e.g. "https://example.com/" or "sc-domain:example.com").
-        page_url: The page URL to inspect.
+        site_url: Verified property URL. Domain property format "sc-domain:example.com"
+            or URL-prefix format "https://example.com/". Must be a property the
+            authenticated user can access.
+        page_url: Fully qualified page URL under `site_url` to inspect.
+
+    Returns:
+        JSON object with (at minimum) these sub-objects when available:
+        - indexStatusResult: verdict, coverageState, lastCrawlTime, canonicals,
+          robotsTxtState, indexingState, pageFetchState, crawledAs, referring URLs
+        - mobileUsabilityResult: verdict, issues list
+        - richResultsResult: verdict, detected rich-result item types and issues
+        - ampResult: verdict, AMP URL, indexing state (only for AMP pages)
+        - inspectionResultLink: link to the Search Console UI for the same inspection
     """
     data = _api_post(
         f"{INSPECT_BASE}/urlInspection/index:inspect",
@@ -230,10 +274,30 @@ def gsc_inspect_url(site_url: str, page_url: str) -> str:
 
 @mcp.tool()
 def gsc_sitemaps(site_url: str) -> str:
-    """List all sitemaps for a site.
+    """List all sitemaps submitted for a property, with errors/warnings and timestamps.
+
+    Use this to check which sitemaps Google knows about for a property, when they were
+    last submitted and downloaded, and whether Google recorded warnings or errors while
+    processing them. Useful for auditing sitemap hygiene before crawl-budget work or
+    to confirm a newly submitted sitemap was picked up.
+
+    Note: this tool is read-only. Submitting or deleting sitemaps requires the
+    `webmasters` (read-write) scope, which this server intentionally does not request.
 
     Args:
-        site_url: Site URL (e.g. "https://example.com/" or "sc-domain:example.com").
+        site_url: Verified property URL. Domain property format "sc-domain:example.com"
+            or URL-prefix format "https://example.com/".
+
+    Returns:
+        JSON array of sitemap entries, one per submitted sitemap, each with:
+        - path: absolute URL of the sitemap (e.g. "https://example.com/sitemap.xml")
+        - lastSubmitted: ISO-8601 timestamp of last (re)submission
+        - lastDownloaded: ISO-8601 timestamp of Google's last fetch
+        - isPending: true while Google has not finished processing the sitemap
+        - isSitemapsIndex: true if it is a sitemap index file referencing other sitemaps
+        - warnings: number of non-blocking issues detected by Google
+        - errors: number of blocking errors detected by Google
+        Returns an empty array if no sitemaps are submitted for the property.
     """
     encoded = urllib.parse.quote(site_url, safe="")
     data = _api_get(f"{BASE}/sites/{encoded}/sitemaps")
