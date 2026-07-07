@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/acamolese-google-search-console-mcp-badge.png)](https://mseep.ai/app/acamolese-google-search-console-mcp)
+
 <!-- mcp-name: io.github.acamolese/google-search-console-mcp -->
 
 # Google Search Console MCP Server
