@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-google-search-console"
-version = "2.0.3"
+version = "2.0.4"
 description = "MCP server for Google Search Console: query performance data, inspect URLs, check indexing, and generate HTML SEO audit reports from Claude, Cursor, Zed, and any Model Context Protocol client."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -54,10 +54,22 @@ classifiers = [
     "Topic :: Text Processing :: Markup :: HTML",
 ]
 dependencies = [
-    "mcp>=1.0.0",
+    "mcp>=1.12,<3",
     "google-auth>=2.0.0",
     "google-auth-oauthlib>=1.0.0",
     "jinja2>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "respx>=0.21",
+    "freezegun>=1.5",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "build>=1.2",
 ]
 
 [project.urls]
@@ -80,4 +92,37 @@ include = [
     "README.md",
     "LICENSE",
     "pyproject.toml",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "BLE", "DTZ", "S", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# audit.py still carries the hardcoded Italian report copy; those long literals move
+# into i18n/it.json in 3.0.0 and this exemption goes away with them.
+"src/google_search_console_mcp/audit.py" = ["E501"]
+# S101 asserts, S105/S106 fake secrets, DTZ001 naive datetimes are the subject under
+# test, S104 is a bind address passed to a fake server.
+"tests/**" = ["S101", "S105", "S106", "S104", "DTZ001"]
+"scripts/**" = ["S101", "T201"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "live: hits the real Google API; requires GSC_LIVE_TESTS=1 and credentials",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["google_search_console_mcp"]
+omit = [
+    "*/__main__.py",
+    "*/auth/oauth.py",
 ]

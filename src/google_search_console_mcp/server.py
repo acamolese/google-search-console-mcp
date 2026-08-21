@@ -3,21 +3,26 @@
 import json
 import urllib.parse
 import urllib.request
-from datetime import datetime
 
-from mcp.server.fastmcp import FastMCP
 from google.oauth2.credentials import Credentials
 
 from . import config
+from ._compat import FastMCP
 from .audit import generate_audit
 
 MCP_INSTRUCTIONS = """Google Search Console MCP Server.
 
-When the user asks for an "analysis", "audit", "report", "analisi", "audit" or "report" of a site, ALWAYS use the `gsc_audit` tool to generate a complete HTML report instead of running individual queries manually.
+When the user asks for an "analysis", "audit" or "report" of a site, ALWAYS use the
+`gsc_audit` tool to generate a complete HTML report instead of running individual
+queries manually.
 
-IMPORTANT: Before calling `gsc_audit`, you MUST know the date range. If the user did not explicitly specify a period (e.g. "last 30 days", "march 2026", "from X to Y"), ASK the user which period they want to analyze before proceeding. Do not assume a default period.
+IMPORTANT: Before calling `gsc_audit`, you MUST know the date range. If the user did
+not explicitly specify a period (e.g. "last 30 days", "march 2026", "from X to Y"),
+ASK the user which period they want to analyze before proceeding. Do not assume a
+default period.
 
-After generating the report, tell the user the file path and optionally open it in the browser.
+After generating the report, tell the user the file path and optionally open it in
+the browser.
 """
 
 mcp = FastMCP("google-search-console", instructions=MCP_INSTRUCTIONS)
@@ -26,6 +31,7 @@ mcp = FastMCP("google-search-console", instructions=MCP_INSTRUCTIONS)
 # ---------------------------------------------------------------------------
 # Credential helpers
 # ---------------------------------------------------------------------------
+
 
 def _google_credentials() -> Credentials:
     oauth = config.load_oauth_client()
@@ -40,19 +46,14 @@ def _google_credentials() -> Credentials:
             "https://www.googleapis.com/auth/webmasters.readonly",
         ],
     )
-    if token.get("expiry"):
-        try:
-            creds.expiry = datetime.fromisoformat(token["expiry"])
-        except ValueError:
-            creds.expiry = datetime(1970, 1, 1)
-    else:
-        # Force a refresh for tokens without an expiry field (env vars, legacy files)
-        creds.expiry = datetime(1970, 1, 1)
+    # A missing or unparseable expiry forces a refresh on the next call.
+    creds.expiry = config.parse_expiry(token.get("expiry")) or config.EPOCH_NAIVE_UTC
     return creds
 
 
 def _get_token() -> str:
     from google.auth.transport.requests import Request
+
     credentials = _google_credentials()
     if not credentials.valid:
         credentials.refresh(Request())
@@ -61,14 +62,15 @@ def _get_token() -> str:
 
 
 def _api_get(url: str) -> dict:
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {_get_token()}"})
-    with urllib.request.urlopen(req) as resp:
+    # S310: every URL is built from the hardcoded Google API bases below.
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {_get_token()}"})  # noqa: S310
+    with urllib.request.urlopen(req) as resp:  # noqa: S310
         return json.loads(resp.read())
 
 
 def _api_post(url: str, body: dict) -> dict:
     data = json.dumps(body).encode()
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310 - Google API bases only
         url,
         data=data,
         headers={
@@ -76,7 +78,7 @@ def _api_post(url: str, body: dict) -> dict:
             "Content-Type": "application/json",
         },
     )
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req) as resp:  # noqa: S310
         return json.loads(resp.read())
 
 
@@ -222,17 +224,19 @@ def gsc_indexing_issues(site_url: str, pages: list[str]) -> str:
             )
             result = data.get("inspectionResult", {})
             index_status = result.get("indexStatusResult", {})
-            results.append({
-                "url": page,
-                "verdict": index_status.get("verdict", "UNKNOWN"),
-                "coverageState": index_status.get("coverageState", ""),
-                "robotsTxtState": index_status.get("robotsTxtState", ""),
-                "indexingState": index_status.get("indexingState", ""),
-                "lastCrawlTime": index_status.get("lastCrawlTime", ""),
-                "pageFetchState": index_status.get("pageFetchState", ""),
-                "crawledAs": index_status.get("crawledAs", ""),
-            })
-        except Exception as e:
+            results.append(
+                {
+                    "url": page,
+                    "verdict": index_status.get("verdict", "UNKNOWN"),
+                    "coverageState": index_status.get("coverageState", ""),
+                    "robotsTxtState": index_status.get("robotsTxtState", ""),
+                    "indexingState": index_status.get("indexingState", ""),
+                    "lastCrawlTime": index_status.get("lastCrawlTime", ""),
+                    "pageFetchState": index_status.get("pageFetchState", ""),
+                    "crawledAs": index_status.get("crawledAs", ""),
+                }
+            )
+        except Exception as e:  # noqa: BLE001 - one failing URL must not abort the batch
             results.append({"url": page, "error": str(e)})
     return json.dumps(results, indent=2, ensure_ascii=False)
 
@@ -303,15 +307,17 @@ def gsc_sitemaps(site_url: str) -> str:
     data = _api_get(f"{BASE}/sites/{encoded}/sitemaps")
     results = []
     for sm in data.get("sitemap", []):
-        results.append({
-            "path": sm.get("path", ""),
-            "lastSubmitted": sm.get("lastSubmitted", ""),
-            "isPending": sm.get("isPending", False),
-            "isSitemapsIndex": sm.get("isSitemapsIndex", False),
-            "lastDownloaded": sm.get("lastDownloaded", ""),
-            "warnings": sm.get("warnings", 0),
-            "errors": sm.get("errors", 0),
-        })
+        results.append(
+            {
+                "path": sm.get("path", ""),
+                "lastSubmitted": sm.get("lastSubmitted", ""),
+                "isPending": sm.get("isPending", False),
+                "isSitemapsIndex": sm.get("isSitemapsIndex", False),
+                "lastDownloaded": sm.get("lastDownloaded", ""),
+                "warnings": sm.get("warnings", 0),
+                "errors": sm.get("errors", 0),
+            }
+        )
     return json.dumps(results, indent=2, ensure_ascii=False)
 
 
