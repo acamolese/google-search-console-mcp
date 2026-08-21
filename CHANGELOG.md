@@ -6,6 +6,26 @@ All notable changes to `mcp-google-search-console` are documented in this file. 
 
 _Nothing yet._
 
+## [2.0.4] - 2026-08-21
+
+### Fixed
+
+- **The server no longer fails to start on a clean install.** `mcp` 2.0.0 removed `mcp.server.fastmcp`, and the dependency was declared as `mcp>=1.0.0` with no upper bound, so `pip install mcp-google-search-console` or `uvx mcp-google-search-console` resolved the new major and died with `ModuleNotFoundError: No module named 'mcp.server.fastmcp'`. The dependency is now `mcp>=1.12,<3` and a new `_compat` module imports the high-level server class from whichever major is installed.
+- Token expiry is now written as an offset-aware ISO timestamp and parsed back into the naive UTC value `google-auth` expects. Expiry values written by 2.0.x are still read correctly. Replaces the deprecated `datetime.utcnow()`.
+
+### Added
+
+- `_compat` module: the single place that knows about SDK differences (`FastMCP`/`MCPServer`, `ToolError`, transport options).
+- Test suite (`pytest`) covering the shim, the tool registry and expiry handling, run in CI against both `mcp<2` and `mcp>=2`.
+- `scripts/smoke_stdio.py`: builds nothing, installs nothing, just starts the published entry point over stdio and asserts the tool list comes back. Wired into a `fresh-install` CI job on Linux, macOS and Windows.
+- `.github/workflows/release.yml`: tagged releases run the suite, build, publish to PyPI with trusted publishing and open a GitHub Release from the CHANGELOG.
+- `docs/RELEASING.md` and `docs/DECISIONS.md`.
+
+### Changed
+
+- The `lint` CI job no longer carries `continue-on-error`: `ruff check` and `ruff format --check` now gate the build, with a stricter rule set (`E`, `F`, `I`, `UP`, `B`, `BLE`, `DTZ`, `S`, `SIM`).
+- `__version__` is read from the installed package metadata instead of being hardcoded (it had drifted to `2.0.0`).
+
 ## [2.0.3] - 2026-04-23
 
 ### Changed

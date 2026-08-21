@@ -20,11 +20,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if command in ("serve", ""):
         from .server import mcp
+
         mcp.run()
         return 0
 
     if command == "auth":
         from .auth import run_oauth_flow
+
         run_oauth_flow()
         return 0
 
