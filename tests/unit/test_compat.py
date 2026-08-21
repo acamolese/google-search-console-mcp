@@ -31,11 +31,12 @@ def test_mcp_version_is_reported():
 
 
 @pytest.mark.asyncio
-async def test_server_registers_the_eight_public_tools():
+async def test_the_server_builds_and_registers_its_tools_on_either_major():
     from google_search_console_mcp.server import mcp
 
     names = sorted(tool.name for tool in await mcp.list_tools())
-    assert names == [
+    # The eight tools 2.x shipped must survive every rename-free release.
+    assert set(names) >= {
         "gsc_audit",
         "gsc_indexing_issues",
         "gsc_inspect_url",
@@ -44,7 +45,7 @@ async def test_server_registers_the_eight_public_tools():
         "gsc_site_details",
         "gsc_sitemaps",
         "gsc_sites",
-    ]
+    }
 
 
 def test_run_server_passes_http_options_on_both_majors():

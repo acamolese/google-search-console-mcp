@@ -1,11 +1,11 @@
 """Audit report generation for Google Search Console."""
 
+import asyncio
 import base64
 import json
 import logging
 import mimetypes
 import re
-import urllib.parse
 from collections import Counter, defaultdict
 from datetime import date, timedelta
 from pathlib import Path
@@ -13,9 +13,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from . import config as app_config
-
-BASE = "https://www.googleapis.com/webmasters/v3"
-INSPECT_BASE = "https://searchconsole.googleapis.com/v1"
+from .errors import GSCError
 
 logger = logging.getLogger(__name__)
 
@@ -130,14 +128,13 @@ def load_branding(branding_path: str = "") -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _query(api_post, site_url: str, body: dict) -> list[dict]:
-    encoded = urllib.parse.quote(site_url, safe="")
-    data = api_post(f"{BASE}/sites/{encoded}/searchAnalytics/query", body)
+async def _query(gsc, site_url: str, body: dict) -> list[dict]:
+    data = await gsc.search_analytics(site_url, body)
     return data.get("rows", [])
 
 
-def _overview(api_post, site_url: str, date_from: str, date_to: str) -> dict:
-    rows = _query(api_post, site_url, {"startDate": date_from, "endDate": date_to})
+async def _overview(gsc, site_url: str, date_from: str, date_to: str) -> dict:
+    rows = await _query(gsc, site_url, {"startDate": date_from, "endDate": date_to})
     if not rows:
         return {"clicks": 0, "impressions": 0, "ctr": 0, "position": 0}
     r = rows[0]
@@ -149,101 +146,60 @@ def _overview(api_post, site_url: str, date_from: str, date_to: str) -> dict:
     }
 
 
-def collect_data(api_get, api_post, site_url: str, date_from: str, date_to: str) -> dict:
-    prev_from, prev_to = previous_period(date_from, date_to)
-
-    current = _overview(api_post, site_url, date_from, date_to)
-    previous = _overview(api_post, site_url, prev_from, prev_to)
-
-    top_queries = _query(
-        api_post,
-        site_url,
-        {
-            "startDate": date_from,
-            "endDate": date_to,
-            "dimensions": ["query"],
-            "rowLimit": 50,
-        },
-    )
-    top_pages = _query(
-        api_post,
-        site_url,
-        {
-            "startDate": date_from,
-            "endDate": date_to,
-            "dimensions": ["page"],
-            "rowLimit": 50,
-        },
-    )
-    devices = _query(
-        api_post,
-        site_url,
-        {
-            "startDate": date_from,
-            "endDate": date_to,
-            "dimensions": ["device"],
-        },
-    )
-    countries = _query(
-        api_post,
-        site_url,
-        {
-            "startDate": date_from,
-            "endDate": date_to,
-            "dimensions": ["country"],
-            "rowLimit": 15,
-        },
-    )
-    trend = _query(
-        api_post,
-        site_url,
-        {
-            "startDate": date_from,
-            "endDate": date_to,
-            "dimensions": ["date"],
-            "rowLimit": 1000,
-        },
-    )
-    query_page = _query(
-        api_post,
-        site_url,
-        {
-            "startDate": date_from,
-            "endDate": date_to,
-            "dimensions": ["query", "page"],
-            "rowLimit": 500,
-        },
-    )
-
-    encoded = urllib.parse.quote(site_url, safe="")
+async def _safe_sitemaps(gsc, site_url: str) -> list[dict]:
     try:
-        sitemaps_data = api_get(f"{BASE}/sites/{encoded}/sitemaps")
-        sitemaps = sitemaps_data.get("sitemap", [])
-    except Exception:  # noqa: BLE001 - sitemaps are optional in the report
+        return await gsc.list_sitemaps(site_url)
+    except GSCError:
+        # Sitemaps are a nice-to-have section; a permission problem there must not
+        # cost the caller the whole report.
         logger.warning("Could not read sitemaps for %s", site_url)
-        sitemaps = []
+        return []
 
+
+async def collect_data(gsc, site_url: str, date_from: str, date_to: str) -> dict:
+    """Fetch everything the report needs, in parallel."""
+    prev_from, prev_to = previous_period(date_from, date_to)
+    window = {"startDate": date_from, "endDate": date_to}
+
+    (
+        current,
+        previous,
+        top_queries,
+        top_pages,
+        devices,
+        countries,
+        trend,
+        query_page,
+        sitemaps,
+    ) = await asyncio.gather(
+        _overview(gsc, site_url, date_from, date_to),
+        _overview(gsc, site_url, prev_from, prev_to),
+        _query(gsc, site_url, {**window, "dimensions": ["query"], "rowLimit": 50}),
+        _query(gsc, site_url, {**window, "dimensions": ["page"], "rowLimit": 50}),
+        _query(gsc, site_url, {**window, "dimensions": ["device"]}),
+        _query(gsc, site_url, {**window, "dimensions": ["country"], "rowLimit": 15}),
+        _query(gsc, site_url, {**window, "dimensions": ["date"], "rowLimit": 1000}),
+        _query(gsc, site_url, {**window, "dimensions": ["query", "page"], "rowLimit": 500}),
+        _safe_sitemaps(gsc, site_url),
+    )
+
+    page_urls = [row["keys"][0] for row in top_pages[:10]]
+    inspected = await gsc.inspect_many(site_url, page_urls) if page_urls else []
     indexing = []
-    for row in top_pages[:10]:
-        page_url = row["keys"][0]
-        try:
-            data = api_post(
-                f"{INSPECT_BASE}/urlInspection/index:inspect",
-                {"inspectionUrl": page_url, "siteUrl": site_url},
-            )
-            result = data.get("inspectionResult", {}).get("indexStatusResult", {})
-            indexing.append(
-                {
-                    "url": page_url,
-                    "verdict": result.get("verdict", "UNKNOWN"),
-                    "coverageState": result.get("coverageState", ""),
-                }
-            )
-        except Exception as e:  # noqa: BLE001 - one failing URL must not abort the batch
-            indexing.append({"url": page_url, "verdict": "ERROR", "coverageState": str(e)[:100]})
+    for item in inspected:
+        if "error" in item:
+            indexing.append({"url": item["url"], "verdict": "ERROR", "coverageState": item["error"][:100]})
+            continue
+        status = (item.get("result") or {}).get("indexStatusResult", {})
+        indexing.append(
+            {
+                "url": item["url"],
+                "verdict": status.get("verdict", "UNKNOWN"),
+                "coverageState": status.get("coverageState", ""),
+            }
+        )
 
-    # Flatten row records: copy `clicks`, `impressions`, `ctr`, `position` on top level
-    # so templates can access q.clicks without .get()
+    # Flatten row records so templates can read q.clicks without .get()
     def _flatten(rows):
         for r in rows:
             r.setdefault("clicks", 0)
@@ -1145,16 +1101,15 @@ def render_html(data: dict, issues: list[dict], strategy: dict, branding: dict) 
 # ---------------------------------------------------------------------------
 
 
-def generate_audit(
-    api_get,
-    api_post,
+async def generate_audit(
+    gsc,
     site_url: str,
     date_from: str,
     date_to: str,
     output_dir: str = "",
     branding_path: str = "",
 ) -> str:
-    data = collect_data(api_get, api_post, site_url, date_from, date_to)
+    data = await collect_data(gsc, site_url, date_from, date_to)
     issues = detect_issues(data)
     strategy = build_strategy(data, issues)
     branding = load_branding(branding_path)
