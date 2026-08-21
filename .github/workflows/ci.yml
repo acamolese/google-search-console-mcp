@@ -23,12 +23,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install ruff
-        run: pip install "ruff>=0.5"
-      - name: Ruff check
-        run: ruff check src tests scripts
-      - name: Ruff format (check only)
-        run: ruff format --check src tests scripts
+      - run: pip install "ruff>=0.5"
+      - run: ruff check src tests scripts
+      - run: ruff format --check src tests scripts
 
   test:
     name: test (py${{ matrix.python-version }}, ${{ matrix.os }}, ${{ matrix.mcp }})
@@ -53,6 +50,16 @@ jobs:
         run: python -c "import importlib.metadata as m; print('mcp', m.version('mcp'))"
       - name: Run tests
         run: pytest -q --cov=google_search_console_mcp
+
+  versions-sync:
+    name: manifests declare one version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/sync_versions.py
 
   fresh-install:
     name: fresh install (py${{ matrix.python-version }}, ${{ matrix.os }}, ${{ matrix.mcp }})
@@ -84,4 +91,54 @@ jobs:
           "$FRESH/python" -c "import importlib.metadata as m; print('mcp', m.version('mcp'))"
       - name: Smoke test the stdio transport
         shell: bash
-        run: "$FRESH/python" scripts/smoke_stdio.py --command "$FRESH/mcp-google-search-console"
+        run: "$FRESH/python" scripts/smoke_stdio.py --command "$FRESH/mcp-google-search-console" --min-tools 17
+
+  plugin-validate:
+    name: plugin and bundle manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate the MCPB manifest
+        run: npx --yes @anthropic-ai/mcpb@latest validate mcpb/manifest.json
+      - name: Pack the MCPB bundle
+        run: |
+          mkdir -p dist
+          npx --yes @anthropic-ai/mcpb@latest pack mcpb dist/google-search-console.mcpb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcpb-bundle
+          path: dist/*.mcpb
+
+  docker:
+    name: docker image answers tools/list
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the image
+        run: docker build -t mcp-gsc:ci .
+      - name: Start the container
+        run: |
+          docker run -d --name mcp-gsc -p 8765:8765 mcp-gsc:ci
+          for _ in $(seq 1 30); do
+            if curl -sf -o /dev/null http://127.0.0.1:8765/mcp -X POST \
+               -H 'Content-Type: application/json' \
+               -H 'Accept: application/json, text/event-stream' \
+               -d '{"jsonrpc":"2.0","id":0,"method":"ping"}'; then break; fi
+            sleep 2
+          done
+      - name: List the tools over streamable HTTP
+        run: |
+          pip install "mcp>=2"
+          python scripts/smoke_http.py --url http://127.0.0.1:8765/mcp --min-tools 17
+      - name: Container logs
+        if: always()
+        run: docker logs mcp-gsc
+      - name: Stop the container
+        if: always()
+        run: docker rm -f mcp-gsc

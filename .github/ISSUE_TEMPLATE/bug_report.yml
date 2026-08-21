@@ -6,12 +6,16 @@ body:
     attributes:
       value: |
         Thanks for taking the time to file a bug. Please fill in the fields below so the issue can be reproduced.
-  - type: input
-    id: version
+  - type: textarea
+    id: doctor
     attributes:
-      label: Package version
-      description: Output of `pip show mcp-google-search-console | grep Version` or `uvx mcp-google-search-console --version` (if available).
-      placeholder: "2.0.2"
+      label: Output of `mcp-google-search-console doctor`
+      description: |
+        Run `uvx mcp-google-search-console doctor` and paste the whole output. It reports the
+        package and SDK versions, Python, the platform, the auth mode and the defaults in use,
+        which answers most of the questions this form would otherwise have to ask.
+        Secrets are masked, but do read it before pasting.
+      render: text
     validations:
       required: true
   - type: input

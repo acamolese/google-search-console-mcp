@@ -1,0 +1,61 @@
+<!--
+  Copy to questions.xml and fill in the answers from a real property.
+  Do not commit questions.xml: it contains client data.
+-->
+<evaluation>
+  <qa_pair>
+    <question>How did example.com do in Google search last week compared with the week before?</question>
+    <answer>
+      Expected tool: gsc_performance_overview with period="last_7_days".
+      Expected answer: clicks, impressions, CTR and average position for the last
+      seven days, each with the change against the preceding seven, taken from the
+      tool output rather than recomputed.
+      TODO: fill in the actual figures for your property.
+    </answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Which pages are we ranking for but nobody clicks?</question>
+    <answer>
+      Expected tool: gsc_ctr_gaps with entity="page".
+      Expected answer: the pages inside the top ten whose CTR is well below what
+      their position normally earns, each with its current and expected CTR.
+      It must not answer from gsc_query rows.
+      TODO: fill in the top three pages for your property.
+    </answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>We lost traffic this month. What happened?</question>
+    <answer>
+      Expected tools: gsc_performance_overview, then gsc_traffic_drops.
+      Expected answer: the pages that lost the most clicks, each with the
+      diagnosis column distinguishing a ranking loss from falling demand, a
+      collapsed CTR or a page dropping out. It must not attribute the drop to a
+      core update or a competitor, which Search Console data cannot show.
+      TODO: fill in what actually happened on your property.
+    </answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Are any of our pages competing with each other on the same keyword?</question>
+    <answer>
+      Expected tool: gsc_cannibalization.
+      Expected answer: the queries where two or more pages each hold a real share
+      of the impressions, with the competing pages listed and one named as the
+      page that should win.
+      TODO: fill in the top cannibalised query for your property.
+    </answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Make me a report for the client covering last month, in Italian.</question>
+    <answer>
+      Expected tool: gsc_audit with period="last_month" and language="it".
+      Expected behaviour: it asks for the brand terms before generating, since
+      without them the brand split is a guess. It then reports the KPIs and issue
+      counts from the JSON summary and hands over the file path.
+      TODO: confirm it asked rather than assuming.
+    </answer>
+  </qa_pair>
+</evaluation>

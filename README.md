@@ -1,205 +1,43 @@
-<!-- mcp-name: io.github.acamolese/google-search-console-mcp -->
+# Google Search Console MCP
 
-# Google Search Console MCP Server
+**English** · [Italiano](README.it.md)
 
-[![PyPI version](https://img.shields.io/pypi/v/mcp-google-search-console.svg)](https://pypi.org/project/mcp-google-search-console/)
-[![Python versions](https://img.shields.io/pypi/pyversions/mcp-google-search-console.svg)](https://pypi.org/project/mcp-google-search-console/)
-[![License: MIT](https://img.shields.io/pypi/l/mcp-google-search-console.svg)](https://github.com/acamolese/google-search-console-mcp/blob/main/LICENSE)
-[![PyPI downloads](https://img.shields.io/pypi/dm/mcp-google-search-console.svg)](https://pypi.org/project/mcp-google-search-console/)
 [![CI](https://github.com/acamolese/google-search-console-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/acamolese/google-search-console-mcp/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/mcp-google-search-console)](https://pypi.org/project/mcp-google-search-console/)
+[![Python](https://img.shields.io/pypi/pyversions/mcp-google-search-console)](https://pypi.org/project/mcp-google-search-console/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Read this in: **English** | [Italiano](README.it.md)
+Seventeen read-only tools over the Google Search Console API, plus a deterministic
+white-label HTML audit report an agency can put its own name on and send to a
+client, in English or Italian.
 
-Open-source **Model Context Protocol (MCP) server for Google Search Console**. Brings your Search Console performance data, URL inspection, indexing checks, and sitemaps into Claude Code, Claude Desktop, Cursor, Zed, Continue, and any MCP-compatible client, and generates complete brandable HTML **SEO audit reports** in a single call.
+![The generated audit report](docs/report-preview.png)
 
-If you work with SEO and use an AI coding assistant, this MCP server removes the copy-paste loop between Search Console and your chat: ask for top queries, check which pages are indexed, inspect a URL, or produce a 30/60/90-day SEO roadmap as an HTML report, all without leaving the assistant.
-
-## Features
-
-- **Read-only access** to Search Console (no write operations to your properties, only the `webmasters.readonly` OAuth scope)
-- **8 tools** covering sites, performance queries, pages, devices, countries, indexing, sitemaps, URL inspection
-- **`gsc_audit`**: one-call generator for a self-contained HTML SEO report with Chart.js graphs, automatic issue detection, concrete examples, actionable strategy and a 30/60/90-day roadmap
-- **Brandable reports**: customize logo, font, and color palette via `branding.json`, perfect for agencies delivering white-label audits
-- **Stateless-friendly**: credentials via environment variables (ideal for CI, Docker, hosted MCP) or via the XDG config directory
-- **Zero setup with `uvx`**: no clone, no virtualenv, runs straight from PyPI
-- **Works with any MCP client**: Claude Code, Claude Desktop, Cursor, Zed, Continue, Windsurf
-
-## Why use this MCP server
-
-- Skip the Search Console UI when you already live inside your AI assistant
-- Turn GSC data into a shareable client-ready HTML audit in a single prompt
-- Keep full control over credentials: choose env vars, XDG config, or legacy file layout
-- Safe by design: read-only scope means the server cannot edit or remove anything from your properties
-- Python 3.10+, MIT licensed, published on PyPI as [`mcp-google-search-console`](https://pypi.org/project/mcp-google-search-console/)
-
-## Tools
-
-| Tool | Description |
-|---|---|
-| `gsc_sites` | List all verified sites |
-| `gsc_site_details` | Details of a specific site |
-| `gsc_query` | Performance report with dimensions (query, page, country, device, date) |
-| `gsc_performance_overview` | Aggregated metrics for a period (clicks, impressions, CTR, position) |
-| `gsc_indexing_issues` | Check indexing status for a list of pages |
-| `gsc_inspect_url` | Detailed URL Inspection for a single page |
-| `gsc_sitemaps` | List all sitemaps submitted for a site |
-| `gsc_audit` | Generate a complete HTML audit report for a date range |
-
-## Installation
-
-### Option A — `uvx` (recommended, zero setup)
-
-Run directly from PyPI, no clone or venv required:
+Regenerate that report from committed synthetic data, with no credentials:
 
 ```bash
-uvx mcp-google-search-console auth      # one-time OAuth authorization
-uvx mcp-google-search-console            # start the MCP server
+python scripts/render_sample_report.py --lang en --open
 ```
 
-### Option B — `pipx`
-
-```bash
-pipx install mcp-google-search-console
-mcp-google-search-console auth
-mcp-google-search-console
-```
-
-### Option C — From source
-
-```bash
-git clone https://github.com/acamolese/google-search-console-mcp.git
-cd google-search-console-mcp
-uv venv && uv pip install -e .
-.venv/bin/mcp-google-search-console auth
-```
-
-## Configuration
-
-### 1. Google Cloud setup
-
-1. [Google Cloud Console](https://console.cloud.google.com/) → create a project
-2. Enable the **Google Search Console API**
-3. **APIs & Credentials** → **Create Credentials** → **OAuth 2.0 Client ID** → **Desktop app**
-4. Download the JSON
-
-### 2. Provide the OAuth client credentials
-
-You have three ways, pick whichever fits your setup. The server reads them in this order:
-
-**A — Environment variables** (best for headless, CI, Docker, hosted MCP):
-
-```bash
-export GSC_CLIENT_ID="xxxxxxxxxxxx.apps.googleusercontent.com"
-export GSC_CLIENT_SECRET="GOCSPX-xxxxxxxxxxxxxxxx"
-export GSC_REFRESH_TOKEN="1//0xxxxxxxxxxxxxxxx"
-```
-
-With these three variables set, the server is fully stateless: no files are read or written.
-
-**B — XDG config directory** (recommended for local desktop usage):
-
-Save the OAuth client JSON as:
-
-```
-~/.config/mcp-google-search-console/oauth_credentials.json
-```
-
-Then run the interactive authorization flow:
-
-```bash
-mcp-google-search-console auth
-```
-
-This opens a browser, captures the OAuth consent and saves the refresh token to `~/.config/mcp-google-search-console/token.json`. On Linux and macOS the path honors `$XDG_CONFIG_HOME` if set.
-
-**C — Legacy per-project directory** (backward compatibility only):
-
-Place files under `./credentials/oauth_credentials.json` and `./credentials/token.json` in the working directory where the server is launched. This mode is still supported for older setups but not recommended.
-
-## Client configuration
-
-All examples below assume you installed with `uvx`. Adjust the command if you used `pipx` (`mcp-google-search-console`) or cloned from source (`/path/to/.venv/bin/mcp-google-search-console`).
+## Install
 
 ### Claude Code
 
-Edit `~/.claude/.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "google-search-console": {
-      "command": "uvx",
-      "args": ["mcp-google-search-console"]
-    }
-  }
-}
+```bash
+/plugin marketplace add acamolese/google-search-console-mcp
+/plugin install google-search-console@acamolese
 ```
+
+The plugin brings the MCP server, five skills (weekly review, cannibalisation
+check, indexing audit, content opportunities, white-label client audit) and a
+config prompt for the three credentials.
 
 ### Claude Desktop
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
-
-```json
-{
-  "mcpServers": {
-    "google-search-console": {
-      "command": "uvx",
-      "args": ["mcp-google-search-console"]
-    }
-  }
-}
-```
-
-### Cursor
-
-Edit `~/.cursor/mcp.json` (or the project-local `.cursor/mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "google-search-console": {
-      "command": "uvx",
-      "args": ["mcp-google-search-console"]
-    }
-  }
-}
-```
-
-### Zed
-
-Add to your Zed `settings.json` under `context_servers`:
-
-```json
-{
-  "context_servers": {
-    "google-search-console": {
-      "command": {
-        "path": "uvx",
-        "args": ["mcp-google-search-console"]
-      }
-    }
-  }
-}
-```
-
-### Continue, Windsurf, and other MCP clients
-
-Any MCP client that supports stdio servers can use the same pattern:
-
-```json
-{
-  "mcpServers": {
-    "google-search-console": {
-      "command": "uvx",
-      "args": ["mcp-google-search-console"]
-    }
-  }
-}
-```
-
-### Stateless configuration with environment variables
-
-If you prefer not to persist anything on disk, pass credentials inline:
+Download `google-search-console.mcpb` from the
+[latest release](https://github.com/acamolese/google-search-console-mcp/releases)
+and open it. It needs [uv](https://docs.astral.sh/uv/) installed. Or edit the
+config file directly:
 
 ```json
 {
@@ -208,142 +46,239 @@ If you prefer not to persist anything on disk, pass credentials inline:
       "command": "uvx",
       "args": ["mcp-google-search-console"],
       "env": {
-        "GSC_CLIENT_ID": "xxxxxxxxxxxx.apps.googleusercontent.com",
-        "GSC_CLIENT_SECRET": "GOCSPX-xxxxxxxxxxxxxxxx",
-        "GSC_REFRESH_TOKEN": "1//0xxxxxxxxxxxxxxxx"
+        "GSC_CLIENT_ID": "...",
+        "GSC_CLIENT_SECRET": "...",
+        "GSC_REFRESH_TOKEN": "..."
       }
     }
   }
 }
 ```
 
-## Usage examples
+### Cursor, Codex, Gemini CLI, Zed
 
-Once the MCP server is wired into your client, you can ask things like:
+Any MCP client takes the same three lines: command `uvx`, argument
+`mcp-google-search-console`, and the three `GSC_*` environment variables.
 
-- "List my verified sites in Search Console"
-- "Show the top 50 queries for `sc-domain:example.com` over the last 30 days"
-- "Check if these 5 pages are indexed: ..."
-- "Generate a complete audit of `example.com` for the period 2026-01-01 → 2026-03-31"
+```bash
+# Codex
+codex mcp add google-search-console -- uvx mcp-google-search-console
 
-The `gsc_audit` tool writes a self-contained HTML file to `~/gsc-reports/` and returns the path. Open it in any browser.
-
-### Tips
-
-- Use `sc-domain:example.com` for domain properties or `https://example.com/` for URL-prefix properties.
-- Available dimensions for `gsc_query`: `query`, `page`, `country`, `device`, `date` (combine with commas).
-- Maximum 25,000 rows per request.
-
-## Customizing the audit report
-
-The audit report layout uses a Jinja2 template in `src/google_search_console_mcp/templates/report.html.j2` with colors and fonts driven by `branding.json`.
-
-To customize without touching the package, create your own `branding.json` in the XDG config directory:
-
-```
-~/.config/mcp-google-search-console/branding.json
+# Gemini CLI
+gemini mcp add google-search-console uvx mcp-google-search-console
 ```
 
-Example:
+### Docker
+
+```bash
+docker build -t mcp-gsc .
+docker run --rm -p 127.0.0.1:8765:8765 \
+  -e GSC_CLIENT_ID -e GSC_CLIENT_SECRET -e GSC_REFRESH_TOKEN \
+  -v "$PWD/reports:/reports" mcp-gsc
+```
+
+The container speaks streamable HTTP on `/mcp`. It has no authentication of its
+own: keep it on loopback or behind a reverse proxy.
+
+## Authentication
+
+The OAuth scope is `webmasters.readonly` and nothing else. No tool in this server
+can modify a property, a sitemap or anything else in Search Console.
+
+Credentials are resolved in this order:
+
+1. `GSC_AUTH_MODE` if set (`oauth`, `service_account`, `adc`)
+2. `GSC_SERVICE_ACCOUNT_FILE` or `GSC_SERVICE_ACCOUNT_JSON`
+3. `GSC_CLIENT_ID` + `GSC_CLIENT_SECRET` + `GSC_REFRESH_TOKEN`
+4. A token file in `~/.config/mcp-google-search-console/`
+5. Application Default Credentials
+
+### OAuth, once
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), enable the
+   **Google Search Console API** and create an OAuth client of type
+   **Desktop app**.
+2. Export the client, or save the downloaded JSON as
+   `~/.config/mcp-google-search-console/oauth_credentials.json`:
+
+   ```bash
+   export GSC_CLIENT_ID="...apps.googleusercontent.com"
+   export GSC_CLIENT_SECRET="..."
+   uvx mcp-google-search-console auth
+   ```
+
+3. The browser flow prints the three `export` lines for a stateless setup, and
+   also stores a token at `~/.config/mcp-google-search-console/token.json` with
+   `0600` permissions.
+
+On a headless machine, run `auth` on your laptop and copy the three environment
+variables across. `--no-browser` prints the URL instead of opening one, but still
+needs a local redirect.
+
+### Service account
+
+Grant the service account's email read access to the property in Search Console,
+then point the server at the key:
+
+```bash
+export GSC_SERVICE_ACCOUNT_FILE=/path/to/key.json
+# or, for a container:
+export GSC_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
+```
+
+### Check it works
+
+```bash
+uvx mcp-google-search-console doctor
+```
+
+Prints the auth mode in use, when the token expires, how many properties the
+account can read, and the defaults every tool applies. Secrets are masked. Exits
+1 when nothing resolves, which is the answer to most "the server won't start"
+reports.
+
+## Tools
+
+| Tool | What it answers |
+|---|---|
+| `gsc_sites` | Which properties can this account read, and in what exact format |
+| `gsc_site_details` | Permission level and type for one property |
+| `gsc_query` | The Search Analytics report, with filters, dimensions and pagination |
+| `gsc_performance_overview` | Is the site up or down, against the previous period |
+| `gsc_compare_periods` | What changed between two periods, ranked by click delta |
+| `gsc_quick_wins` | Queries close enough to the top that a push would pay off |
+| `gsc_ctr_gaps` | Pages that rank but are not clicked |
+| `gsc_cannibalization` | Queries where several pages compete against each other |
+| `gsc_traffic_drops` | Pages that lost clicks, with a likely cause for each |
+| `gsc_content_decay` | Pages sliding down month after month |
+| `gsc_alerts` | What moved sharply enough to be worth a message today |
+| `gsc_portfolio` | Every property at a glance, worst first |
+| `gsc_indexing_issues` | Which of these URLs are indexed, and why not |
+| `gsc_inspect_url` | Full URL Inspection for one page |
+| `gsc_sitemaps` | Which sitemaps Google knows about, with errors and warnings |
+| `gsc_doctor` | What is configured, and does the API answer |
+| `gsc_audit` | The full HTML report |
+
+Three prompts wrap the workflows that repeat: `gsc_weekly_report`,
+`gsc_indexing_audit`, `gsc_content_opportunities`.
+
+## Why this server
+
+| | Here | Typical GSC MCP server |
+|---|---|---|
+| Client-ready report | Self-contained HTML, English or Italian, white-label | none |
+| Analysis | Cannibalisation, CTR gaps, decay, drop diagnosis, run server-side | raw rows, analysed by the model |
+| Thresholds | Adapt to the size of the property | fixed, or none |
+| Dates | `period="last_month"`, `days=28`, resolved server-side | explicit dates only |
+| Freshness | `dataState=all` by default, matching the UI | `final` only |
+| Auth | OAuth, service account, ADC | OAuth only |
+| Output | TSV by default, roughly a third of the tokens of pretty JSON | `json.dumps(indent=2)` |
+| Errors | Google's reason plus what to do about it | bare HTTP status |
+| Tests | 280+, on both `mcp` majors, three operating systems | usually none |
+
+## Report customisation
+
+Colours, logo, report name, brand terms and thresholds come from a JSON file.
+Pass `branding_path`, or place it at
+`~/.config/mcp-google-search-console/branding.json` to apply it everywhere:
 
 ```json
 {
-  "brand_name": "Acme SEO Studio",
+  "brand_name": "Your Agency",
   "logo": "logo.png",
-  "font_family": "Poppins",
-  "font_url": "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap",
-  "colors": {
-    "primary": "#ff6b35",
-    "primary_dark": "#cc4a1f",
-    "secondary": "#004e89",
-    "accent": "#00b894",
-    "danger": "#e74c3c",
-    "warning": "#f39c12",
-    "text": "#004e89",
-    "text_muted": "#5a6c7d",
-    "text_light": "#8395a7",
-    "bg": "#f8f9fc",
-    "surface": "#ffffff",
-    "border": "#e1e8ed"
-  }
+  "brand_terms": ["clientbrand", "client brand"],
+  "colors": { "primary": "#2b6cb0", "primary_dark": "#1a365d" },
+  "thresholds": { "min_impressions": 200 }
 }
 ```
 
-The `logo` field accepts either a local file name (resolved against the XDG config dir, then the package dir) or a full URL. Local files are automatically base64-encoded into the HTML so the report stays self-contained.
+A local logo is base64-encoded into the document. A remote one is only kept if
+`allow_external_fonts` is true, because the report is otherwise guaranteed to
+contain no external URL at all: no CDN, no font service, nothing that phones home
+when a client opens it.
 
-You can also pass a custom branding file per report via the `branding_path` parameter of `gsc_audit`:
+`brand_terms` matters more than it looks. Without it, the first label of the
+domain is used as the brand, which is wrong for abbreviations, holding companies
+and invented names, and it silently mislabels the brand/non-brand split. The
+report says when it had to guess.
 
-> "Generate an audit of example.com using the branding at `/path/to/client-branding.json`"
+## Quotas and limits
 
-## FAQ
+- **16 months** of daily data. Anything older is not available at any price.
+- **Hourly data**: the last 10 days only.
+- **URL Inspection**: 600 per minute and **2,000 per day per property**. This is
+  the limit that bites on a large site.
+- **Search Analytics**: 1,200 queries per minute per site. Responses are cached
+  in memory for 6 hours (1 hour for inspections); `no_cache=true` bypasses it.
+- **Rows**: 25,000 per API call. Tools default to 100 and cap at 1,000, with
+  `start_row` for pagination; the cap is reported in the response, never applied
+  silently.
 
-### What is an MCP server?
+## Environment variables
 
-MCP (Model Context Protocol) is an open protocol that lets AI assistants like Claude or Cursor talk to external data sources and tools through a standard interface. An MCP server exposes a set of tools (functions) and resources that the assistant can call during a conversation. This project is an MCP server that exposes Google Search Console as tools your assistant can use.
-
-### Does this work with Claude Desktop, Claude Code, Cursor, Zed, and Continue?
-
-Yes. Anything that can speak MCP over stdio can use this server. Ready-to-paste configuration snippets for each client are in [Client configuration](#client-configuration).
-
-### Can this server change or delete data in my Search Console account?
-
-No. The server only requests the `webmasters.readonly` scope from Google, which is read-only by design. It cannot submit sitemaps, request indexing, or modify any property settings.
-
-### How do I obtain the OAuth client credentials?
-
-Create a Google Cloud project, enable the Google Search Console API, then create an **OAuth 2.0 Client ID** of type **Desktop app** and download the JSON. Full steps are in the [Configuration](#configuration) section.
-
-### Can I use a service account instead of OAuth?
-
-Not currently. The Search Console API requires that the identity has been granted access to the property, and Google's own docs recommend OAuth user credentials for most use cases. If you need service account support, open an issue.
-
-### Can I customize the SEO audit report?
-
-Yes. Drop a `branding.json` file in `~/.config/mcp-google-search-console/` to override logo, font, and the full color palette. See [Customizing the audit report](#customizing-the-audit-report). You can also pass a per-report `branding_path` parameter when calling `gsc_audit`, which is ideal for agencies producing white-label audits for multiple clients.
-
-### Where are the audit reports saved?
-
-`gsc_audit` writes a self-contained HTML file to `~/gsc-reports/` and returns the path. The file is fully inlined (CSS, charts, images base64-encoded) so you can share it without worrying about external assets.
-
-### What's the difference between `sc-domain:` and URL-prefix properties?
-
-`sc-domain:example.com` covers the entire domain, including all subdomains and both `http`/`https`. `https://example.com/` only covers that specific prefix. Use whichever matches how you verified the property in Search Console.
-
-### Does it work on headless servers or in Docker?
-
-Yes. Set `GSC_CLIENT_ID`, `GSC_CLIENT_SECRET`, `GSC_REFRESH_TOKEN` as environment variables and skip the browser `auth` flow. The server is fully stateless in this mode and never writes to disk.
-
-## Security
-
-- Never commit `oauth_credentials.json`, `token.json`, or `.env` files with real secrets.
-- The XDG config directory is the default storage location and is outside the repository.
-- The server only requests the `webmasters.readonly` scope.
+| Variable | Default | Purpose |
+|---|---|---|
+| `GSC_CLIENT_ID`, `GSC_CLIENT_SECRET`, `GSC_REFRESH_TOKEN` | | Stateless OAuth |
+| `GSC_SERVICE_ACCOUNT_FILE`, `GSC_SERVICE_ACCOUNT_JSON` | | Service account |
+| `GSC_AUTH_MODE` | auto | Force `oauth`, `service_account` or `adc` |
+| `GSC_REPORT_LANGUAGE` | `en` | Report language: `en` or `it` |
+| `GSC_DATA_STATE` | `all` | `all` includes today's partial data, `final` does not |
+| `GSC_CACHE_TTL_SECONDS` | `21600` | Response cache TTL; `0` disables it |
+| `GSC_INSPECT_CONCURRENCY` | `5` | Parallel URL inspections |
+| `GSC_LOG_LEVEL` | `WARNING` | Logging, always to stderr |
+| `MCP_TRANSPORT`, `MCP_HOST`, `MCP_PORT` | `stdio` | Transport |
 
 ## Troubleshooting
 
-- **401 Unauthorized on first call**: token expired or missing. Run `mcp-google-search-console auth` or set `GSC_REFRESH_TOKEN`.
-- **"No OAuth client credentials found"**: neither env vars nor files are configured. See the Configuration section.
-- **Browser flow fails on headless machines**: skip `auth` entirely and export `GSC_CLIENT_ID`, `GSC_CLIENT_SECRET`, `GSC_REFRESH_TOKEN` as environment variables.
+**`spawn uvx ENOENT`** — the client cannot find `uvx` on its PATH. GUI apps do
+not inherit a shell PATH. Use the absolute path: `which uvx` gives it, typically
+`/Users/you/.local/bin/uvx`.
 
-## Migration from legacy installs (pre-`f2fe60e`)
+**`403 forbidden` on every call** — almost always the property format. A domain
+property is `sc-domain:example.com`; a URL-prefix property is
+`https://example.com/`, trailing slash included. `gsc_sites` returns the exact
+strings.
 
-The package was restructured in commit `f2fe60e` and no longer ships a top-level `server.py`. If your MCP client was configured to launch the server with `python server.py`, it will now fail at startup with:
+**`401 invalid_grant`** — the refresh token was revoked or expired. Google expires
+refresh tokens for OAuth apps still in "testing" after seven days; publish the
+app, or re-run `auth`.
 
+**`403 quotaExceeded`** — the daily URL Inspection quota is gone. It resets
+tomorrow; nothing retries past it.
+
+**Empty report on a small site** — check the thresholds in the response meta. They
+adapt to the property, but the floors (50 impressions, 10 clicks) still apply.
+Pass `thresholds` to lower them.
+
+**Anything else** — run `doctor` and include its output in the issue.
+
+## Security
+
+- Read-only scope, requested and never widened.
+- Token files are written atomically with `0600` permissions. Credentials supplied
+  through the environment are never written to disk.
+- `gsc_doctor` masks the client ID and never returns a token.
+- No telemetry, no analytics, no request to any host other than Google's API.
+
+See [SECURITY.md](SECURITY.md) for the reporting policy.
+
+## Development
+
+```bash
+uv venv && uv pip install -e ".[dev]"
+ruff check src tests scripts && ruff format --check src tests scripts
+pytest -q --cov=google_search_console_mcp
+python scripts/sync_versions.py
+python scripts/render_sample_report.py --lang it --open
 ```
-can't open file '.../server.py': [Errno 2] No such file or directory
-```
 
-Update your client config to use the installed entry-point instead:
+Tests never hit the network. Live tests exist behind `-m live` and require
+`GSC_LIVE_TESTS=1` plus credentials; they never run in CI.
 
-```json
-"google-search-console": {
-  "command": "uvx",
-  "args": ["mcp-google-search-console"]
-}
-```
-
-Equivalent forms are listed under [Client configuration](#client-configuration).
+Releases: see [docs/RELEASING.md](docs/RELEASING.md). Decisions not covered by the
+code are logged in [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## License
 
-[MIT](LICENSE) © Andrea Camolese. Not affiliated with Google or Anthropic. "Google Search Console" is a trademark of Google LLC.
+MIT. Chart.js 4.5.1 is vendored under `src/google_search_console_mcp/static/`,
+also MIT, with its licence alongside.
