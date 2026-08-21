@@ -33,13 +33,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: |
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build the wheel and sdist
+        run: |
           python -m pip install --upgrade pip build
           python -m build
+      - name: Pack the Claude Desktop bundle
+        run: |
+          mkdir -p bundle
+          npx --yes @anthropic-ai/mcpb@latest pack mcpb bundle/google-search-console.mcpb
+      # Two artifacts on purpose: PyPI rejects anything in the upload directory
+      # that is not a wheel or an sdist.
       - uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: python-dist
           path: dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcpb-bundle
+          path: bundle/
 
   publish:
     name: publish to PyPI
@@ -51,7 +65,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: dist
+          name: python-dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
 
@@ -65,8 +79,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: dist
-          path: dist/
+          name: python-dist
+          path: release-files/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mcpb-bundle
+          path: release-files/
       - name: Extract the CHANGELOG section for this tag
         shell: bash
         run: |
@@ -83,4 +101,5 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           body_path: release-notes.md
-          files: dist/*
+          # The wheel, the sdist and the .mcpb bundle the README points people at.
+          files: release-files/*

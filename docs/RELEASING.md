@@ -39,9 +39,27 @@ The `Release` workflow runs the suite, builds the distributions, publishes them 
 PyPI with trusted publishing, and opens a GitHub Release carrying the matching
 CHANGELOG section.
 
-PyPI trusted publishing needs a one-time setup on pypi.org: add a publisher for the
-repository `acamolese/google-search-console-mcp`, workflow `release.yml`,
-environment `pypi`.
+### PyPI trusted publishing, one-time setup
+
+The `publish` job authenticates with an OIDC token instead of an API key, which
+means there is no secret to leak or rotate. It has to be registered on pypi.org
+once, under the project's *Publishing* settings:
+
+| Field | Value |
+|---|---|
+| PyPI project name | `mcp-google-search-console` |
+| Owner | `acamolese` |
+| Repository name | `google-search-console-mcp` |
+| Workflow name | `release.yml` |
+| Environment name | `pypi` |
+
+Until that exists, the job fails with `invalid-publisher: valid token, but no
+corresponding publisher`, and prints the claims it presented. Those claims are
+what the table above has to match.
+
+The `pypi` environment also has to exist under the repository's Settings →
+Environments. Adding a required reviewer there turns every publish into an
+explicit approval, which is worth doing.
 
 ## 4. Publish to the MCP registry (manual)
 
