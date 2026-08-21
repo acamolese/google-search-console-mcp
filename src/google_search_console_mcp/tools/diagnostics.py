@@ -9,7 +9,7 @@ from .. import config
 from .._compat import MCP_MAJOR, mcp_version
 from ..errors import GSCError
 from ..models import Doctor
-from ._common import annotations, client, tool_errors
+from ._common import client, tool_annotations, tool_errors
 
 
 def collect(transport: str = "stdio") -> Doctor:
@@ -85,7 +85,7 @@ def as_text(doctor: Doctor) -> str:
 
 
 def register(mcp) -> None:
-    @mcp.tool(annotations=annotations("Server diagnostics"))
+    @mcp.tool(annotations=tool_annotations("Server diagnostics"))
     @tool_errors
     async def gsc_doctor() -> Doctor:
         """Report the server's configuration and whether Search Console answers.

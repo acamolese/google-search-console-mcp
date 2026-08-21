@@ -70,7 +70,9 @@ ResponseFormat = Annotated[str, Field(description="`tsv` (default, compact) or `
 NoCache = Annotated[bool, Field(description="Bypass the response cache for this call.")]
 
 
-def annotations(title: str) -> ToolAnnotations:
+def tool_annotations(title: str) -> ToolAnnotations:
+    # Not named `annotations`: that name is taken by `from __future__ import annotations`
+    # in every module that would import it.
     return ToolAnnotations(title=title, **READ_ONLY)
 
 

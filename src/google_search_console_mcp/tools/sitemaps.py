@@ -7,10 +7,10 @@ from ._common import (
     NoCache,
     ResponseFormat,
     SiteUrl,
-    annotations,
     check_format,
     check_site_url,
     client,
+    tool_annotations,
     tool_errors,
 )
 
@@ -25,7 +25,7 @@ def _contents(entry: dict) -> tuple[int, int]:
 
 
 def register(mcp) -> None:
-    @mcp.tool(annotations=annotations("List submitted sitemaps"))
+    @mcp.tool(annotations=tool_annotations("List submitted sitemaps"))
     @tool_errors
     async def gsc_sitemaps(
         site_url: SiteUrl,

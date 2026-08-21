@@ -7,16 +7,16 @@ from ._common import (
     NoCache,
     ResponseFormat,
     SiteUrl,
-    annotations,
     check_format,
     check_site_url,
     client,
+    tool_annotations,
     tool_errors,
 )
 
 
 def register(mcp) -> None:
-    @mcp.tool(annotations=annotations("List Search Console properties"))
+    @mcp.tool(annotations=tool_annotations("List Search Console properties"))
     @tool_errors
     async def gsc_sites(response_format: ResponseFormat = "tsv", no_cache: NoCache = False) -> str:
         """List every property the authenticated account can read.
@@ -43,7 +43,7 @@ def register(mcp) -> None:
         }
         return render(rows, ["site_url", "permission", "type"], meta, response_format)
 
-    @mcp.tool(annotations=annotations("Property details"))
+    @mcp.tool(annotations=tool_annotations("Property details"))
     @tool_errors
     async def gsc_site_details(
         site_url: SiteUrl,

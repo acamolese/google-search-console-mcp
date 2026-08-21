@@ -15,10 +15,10 @@ from ._common import (
     NoCache,
     ResponseFormat,
     SiteUrl,
-    annotations,
     check_format,
     check_site_url,
     client,
+    tool_annotations,
     tool_errors,
 )
 
@@ -27,7 +27,7 @@ QUOTA_NOTE = "600 inspections per minute and 2,000 per day, per property."
 
 
 def register(mcp) -> None:
-    @mcp.tool(annotations=annotations("Bulk indexing check"))
+    @mcp.tool(annotations=tool_annotations("Bulk indexing check"))
     @tool_errors
     async def gsc_indexing_issues(
         site_url: SiteUrl,
@@ -114,7 +114,7 @@ def register(mcp) -> None:
         ]
         return render(rows, columns, meta, response_format)
 
-    @mcp.tool(annotations=annotations("Inspect one URL"))
+    @mcp.tool(annotations=tool_annotations("Inspect one URL"))
     @tool_errors
     async def gsc_inspect_url(
         site_url: SiteUrl,

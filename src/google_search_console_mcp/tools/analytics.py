@@ -21,7 +21,6 @@ from ._common import (
     ResponseFormat,
     RowLimit,
     SiteUrl,
-    annotations,
     base_meta,
     build_filter_groups,
     check_aggregation,
@@ -31,6 +30,7 @@ from ._common import (
     clamp_row_limit,
     client,
     parse_dimensions,
+    tool_annotations,
     tool_errors,
 )
 
@@ -119,7 +119,7 @@ async def totals_for(
 def register(mcp) -> None:
     settings = Settings.from_env()
 
-    @mcp.tool(annotations=annotations("Search Console performance report"))
+    @mcp.tool(annotations=tool_annotations("Search Console performance report"))
     @tool_errors
     async def gsc_query(
         site_url: SiteUrl,
@@ -219,7 +219,7 @@ def register(mcp) -> None:
         )
         return render(rows, columns_for(dimension_list), meta, response_format)
 
-    @mcp.tool(annotations=annotations("Search Console performance overview"))
+    @mcp.tool(annotations=tool_annotations("Search Console performance overview"))
     @tool_errors
     async def gsc_performance_overview(
         site_url: SiteUrl,
@@ -284,7 +284,7 @@ def register(mcp) -> None:
             delta=build_delta(current, previous),
         )
 
-    @mcp.tool(annotations=annotations("Compare two periods"))
+    @mcp.tool(annotations=tool_annotations("Compare two periods"))
     @tool_errors
     async def gsc_compare_periods(
         site_url: SiteUrl,

@@ -279,7 +279,8 @@ class CredentialProvider:
 
 def _refresh_error_body(exc: Exception) -> Any:
     """`RefreshError` carries Google's JSON body as its second argument."""
-    args = getattr(exc, "args", ())
-    if len(args) > 1 and isinstance(args[1], dict):
-        return args[1]
+    args = list(getattr(exc, "args", ()))
+    for argument in args[1:]:
+        if isinstance(argument, dict):
+            return argument
     return {"error": {"message": str(exc), "errors": [{"reason": "invalid_grant"}]}}

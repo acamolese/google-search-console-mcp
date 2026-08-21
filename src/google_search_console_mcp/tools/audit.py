@@ -18,9 +18,9 @@ from ._common import (
     Days,
     Period,
     SiteUrl,
-    annotations,
     check_site_url,
     client,
+    tool_annotations,
     tool_errors,
 )
 
@@ -60,7 +60,7 @@ def _check_sections(sections: list[str] | None) -> list[str] | None:
 def register(mcp) -> None:
     settings = Settings.from_env()
 
-    @mcp.tool(annotations=annotations("Generate an HTML SEO audit"))
+    @mcp.tool(annotations=tool_annotations("Generate an HTML SEO audit"))
     @tool_errors
     async def gsc_audit(
         site_url: SiteUrl,
@@ -162,6 +162,8 @@ def register(mcp) -> None:
             blocks.append(
                 EmbeddedResource(
                     type="resource",
+                    # camelCase on purpose: it is the field name on mcp 1.x and the
+                    # accepted alias on 2.x, so one spelling works on both.
                     resource=TextResourceContents(
                         uri=result.resource_uri,
                         mimeType="text/html",

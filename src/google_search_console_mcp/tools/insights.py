@@ -26,11 +26,11 @@ from ._common import (
     ResponseFormat,
     RowLimit,
     SiteUrl,
-    annotations,
     check_format,
     check_site_url,
     clamp_row_limit,
     client,
+    tool_annotations,
     tool_errors,
 )
 from .analytics import _search, totals_for
@@ -84,7 +84,7 @@ def register(mcp) -> None:
             no_cache=no_cache,
         )
 
-    @mcp.tool(annotations=annotations("Quick wins"))
+    @mcp.tool(annotations=tool_annotations("Quick wins"))
     @tool_errors
     async def gsc_quick_wins(
         site_url: SiteUrl,
@@ -144,7 +144,7 @@ def register(mcp) -> None:
         )
         return render(found, columns, meta, response_format)
 
-    @mcp.tool(annotations=annotations("CTR gaps"))
+    @mcp.tool(annotations=tool_annotations("CTR gaps"))
     @tool_errors
     async def gsc_ctr_gaps(
         site_url: SiteUrl,
@@ -212,7 +212,7 @@ def register(mcp) -> None:
         )
         return render(found, columns, meta, response_format)
 
-    @mcp.tool(annotations=annotations("Keyword cannibalisation"))
+    @mcp.tool(annotations=tool_annotations("Keyword cannibalisation"))
     @tool_errors
     async def gsc_cannibalization(
         site_url: SiteUrl,
@@ -274,7 +274,7 @@ def register(mcp) -> None:
         columns = ["query", "page_count", "clicks", "impressions", "pages"]
         return render(flat, columns, meta, response_format)
 
-    @mcp.tool(annotations=annotations("Traffic drops"))
+    @mcp.tool(annotations=tool_annotations("Traffic drops"))
     @tool_errors
     async def gsc_traffic_drops(
         site_url: SiteUrl,
@@ -336,7 +336,7 @@ def register(mcp) -> None:
         )
         return render(found, columns, meta, response_format)
 
-    @mcp.tool(annotations=annotations("Content decay"))
+    @mcp.tool(annotations=tool_annotations("Content decay"))
     @tool_errors
     async def gsc_content_decay(
         site_url: SiteUrl,
@@ -408,7 +408,7 @@ def register(mcp) -> None:
         )
         return render(found, columns, meta, response_format)
 
-    @mcp.tool(annotations=annotations("Alerts"))
+    @mcp.tool(annotations=tool_annotations("Alerts"))
     @tool_errors
     async def gsc_alerts(
         site_url: SiteUrl,
@@ -465,7 +465,7 @@ def register(mcp) -> None:
         columns = ["severity", "type", "entity", "before", "after", "delta"]
         return render(found, columns, meta, response_format)
 
-    @mcp.tool(annotations=annotations("Portfolio overview"))
+    @mcp.tool(annotations=tool_annotations("Portfolio overview"))
     @tool_errors
     async def gsc_portfolio(
         limit: Annotated[int, Field(description="How many properties to check.")] = 30,
