@@ -1,0 +1,150 @@
+{
+  "manifest_version": "0.2",
+  "name": "google-search-console",
+  "display_name": "Google Search Console",
+  "version": "3.0.0",
+  "description": "Read Google Search Console: performance queries, indexing checks, SEO analysis and a white-label HTML audit report.",
+  "long_description": "Seventeen read-only tools over the Google Search Console API, plus a self-contained HTML SEO audit in English or Italian.\n\nRequires `uv` on the machine (https://docs.astral.sh/uv/), which provides the `uvx` command this bundle launches. Credentials: create a Desktop app OAuth client in Google Cloud Console with the Search Console API enabled, then run `uvx mcp-google-search-console auth` once to obtain a refresh token.\n\nThe OAuth scope is read-only: no tool can modify a property, a sitemap or anything else in Search Console.",
+  "author": {
+    "name": "Andrea Camolese",
+    "url": "https://github.com/acamolese"
+  },
+  "homepage": "https://github.com/acamolese/google-search-console-mcp",
+  "documentation": "https://github.com/acamolese/google-search-console-mcp#readme",
+  "support": "https://github.com/acamolese/google-search-console-mcp/issues",
+  "license": "MIT",
+  "icon": "icon.png",
+  "keywords": [
+    "seo",
+    "google-search-console",
+    "gsc",
+    "search-console",
+    "seo-audit",
+    "reporting"
+  ],
+  "server": {
+    "type": "python",
+    "entry_point": "mcp-google-search-console",
+    "mcp_config": {
+      "command": "uvx",
+      "args": [
+        "mcp-google-search-console"
+      ],
+      "env": {
+        "GSC_CLIENT_ID": "${user_config.client_id}",
+        "GSC_CLIENT_SECRET": "${user_config.client_secret}",
+        "GSC_REFRESH_TOKEN": "${user_config.refresh_token}",
+        "GSC_REPORT_LANGUAGE": "${user_config.report_language}"
+      }
+    }
+  },
+  "user_config": {
+    "client_id": {
+      "type": "string",
+      "title": "Google OAuth client ID",
+      "description": "From a Desktop app OAuth client in Google Cloud Console, with the Search Console API enabled.",
+      "required": false
+    },
+    "client_secret": {
+      "type": "string",
+      "title": "Google OAuth client secret",
+      "description": "The client secret paired with the client ID above.",
+      "sensitive": true,
+      "required": false
+    },
+    "refresh_token": {
+      "type": "string",
+      "title": "Google OAuth refresh token",
+      "description": "Run `uvx mcp-google-search-console auth` once to obtain it.",
+      "sensitive": true,
+      "required": false
+    },
+    "report_language": {
+      "type": "string",
+      "title": "Audit report language",
+      "description": "Language for the generated HTML report.",
+      "default": "en",
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "gsc_sites",
+      "description": "List every property the authenticated account can read."
+    },
+    {
+      "name": "gsc_site_details",
+      "description": "Permission level and property type for one property."
+    },
+    {
+      "name": "gsc_query",
+      "description": "Query the Search Analytics report: clicks, impressions, CTR, position."
+    },
+    {
+      "name": "gsc_performance_overview",
+      "description": "Site totals for a period, compared with the preceding one."
+    },
+    {
+      "name": "gsc_compare_periods",
+      "description": "Join two periods on one dimension and rank the rows by click delta."
+    },
+    {
+      "name": "gsc_quick_wins",
+      "description": "Queries close enough to the top that a push would pay off."
+    },
+    {
+      "name": "gsc_ctr_gaps",
+      "description": "Rows that rank well but are clicked far less than their position implies."
+    },
+    {
+      "name": "gsc_cannibalization",
+      "description": "Queries where several pages of the site compete for the same result."
+    },
+    {
+      "name": "gsc_traffic_drops",
+      "description": "Pages that lost clicks against the baseline, each with a likely cause."
+    },
+    {
+      "name": "gsc_content_decay",
+      "description": "Pages sliding down month after month."
+    },
+    {
+      "name": "gsc_alerts",
+      "description": "What changed sharply enough to be worth a message today."
+    },
+    {
+      "name": "gsc_portfolio",
+      "description": "Every accessible property at a glance, ranked worst first."
+    },
+    {
+      "name": "gsc_indexing_issues",
+      "description": "Check whether a batch of URLs is indexed, and why not when they are not."
+    },
+    {
+      "name": "gsc_inspect_url",
+      "description": "Full URL Inspection for one page: index, mobile, rich results and AMP."
+    },
+    {
+      "name": "gsc_sitemaps",
+      "description": "List the sitemaps Google knows about, with errors and warnings."
+    },
+    {
+      "name": "gsc_doctor",
+      "description": "Report the server's configuration and whether Search Console answers."
+    },
+    {
+      "name": "gsc_audit",
+      "description": "Build a complete, self-contained HTML SEO audit for one property."
+    }
+  ],
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  }
+}

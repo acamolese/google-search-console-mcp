@@ -2,21 +2,55 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.acamolese/google-search-console-mcp",
   "title": "Google Search Console",
-  "description": "Google Search Console MCP server: SEO audits, performance queries, URL inspection, indexing checks.",
+  "description": "Google Search Console: SEO audits, performance queries, URL inspection, indexing checks.",
   "repository": {
     "url": "https://github.com/acamolese/google-search-console-mcp",
     "source": "github"
   },
   "websiteUrl": "https://github.com/acamolese/google-search-console-mcp",
-  "version": "2.0.4",
+  "version": "3.0.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "mcp-google-search-console",
-      "version": "2.0.4",
+      "version": "3.0.0",
       "transport": {
         "type": "stdio"
-      }
+      },
+      "environmentVariables": [
+        {
+          "name": "GSC_CLIENT_ID",
+          "description": "OAuth client ID from a Desktop app credential in Google Cloud Console.",
+          "isRequired": false
+        },
+        {
+          "name": "GSC_CLIENT_SECRET",
+          "description": "OAuth client secret paired with GSC_CLIENT_ID.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "GSC_REFRESH_TOKEN",
+          "description": "OAuth refresh token, from `mcp-google-search-console auth`.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "GSC_SERVICE_ACCOUNT_FILE",
+          "description": "Path to a service account JSON key, as an alternative to OAuth.",
+          "isRequired": false
+        },
+        {
+          "name": "GSC_REPORT_LANGUAGE",
+          "description": "Language of the generated HTML audit report: en or it. Defaults to en.",
+          "isRequired": false
+        },
+        {
+          "name": "GSC_DATA_STATE",
+          "description": "Default freshness of the data: all (includes today's partial data) or final.",
+          "isRequired": false
+        }
+      ]
     }
   ]
 }

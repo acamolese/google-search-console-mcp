@@ -1,0 +1,29 @@
+# Run the server over streamable HTTP, e.g. for a remote MCP client.
+#
+#   cp docker-compose.example.yml docker-compose.yml
+#   docker compose up --build
+#
+# Credentials come from the environment: nothing is written to the image.
+services:
+  google-search-console:
+    build: .
+    image: mcp-google-search-console:3.0.0
+    ports:
+      # Bound to loopback on purpose: the server has no authentication of its
+      # own. Put it behind a reverse proxy before exposing it.
+      - "127.0.0.1:8765:8765"
+    environment:
+      GSC_CLIENT_ID: "${GSC_CLIENT_ID}"
+      GSC_CLIENT_SECRET: "${GSC_CLIENT_SECRET}"
+      GSC_REFRESH_TOKEN: "${GSC_REFRESH_TOKEN}"
+      # Or, instead of the three above, a mounted service account key:
+      # GSC_SERVICE_ACCOUNT_FILE: /run/secrets/service-account.json
+      GSC_REPORT_LANGUAGE: "en"
+      GSC_LOG_LEVEL: "INFO"
+      MCP_TRANSPORT: "streamable-http"
+      MCP_HOST: "0.0.0.0"
+      MCP_PORT: "8765"
+    volumes:
+      # gsc_audit with output="file" writes here.
+      - ./reports:/reports
+    restart: unless-stopped
