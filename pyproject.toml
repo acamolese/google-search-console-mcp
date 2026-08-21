@@ -113,6 +113,10 @@ select = ["E", "F", "I", "UP", "B", "BLE", "DTZ", "S", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The suite imports helpers from tests.conftest, so the repository root has to be
+# importable. `python -m pytest` adds the CWD and bare `pytest` does not; this
+# makes both behave the same.
+pythonpath = ["."]
 asyncio_mode = "auto"
 markers = [
     "live: hits the real Google API; requires GSC_LIVE_TESTS=1 and credentials",

@@ -36,6 +36,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="print the URL instead of opening a browser (still needs a local redirect)",
     )
+    auth.add_argument(
+        "--timeout",
+        type=int,
+        default=300,
+        help="seconds to wait for the browser redirect (default 300)",
+    )
 
     sub.add_parser("doctor", help="report the current configuration and check access")
     sub.add_parser("version", help="print the package version")
@@ -61,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     if command == "auth":
         from .auth.oauth import run_oauth_flow
 
-        run_oauth_flow(open_browser=not parsed.no_browser)
+        run_oauth_flow(open_browser=not parsed.no_browser, timeout_seconds=parsed.timeout)
         return 0
 
     if command == "doctor":

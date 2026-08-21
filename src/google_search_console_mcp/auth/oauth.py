@@ -10,18 +10,18 @@ to stdout, because it never runs while the stdio transport is serving.
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
 from .. import config
 from .credentials import SCOPES, _write_secret
 
 # Long enough for a password manager and a 2FA prompt, short enough that a
-# forgotten terminal does not hold a listener open forever.
+# forgotten terminal does not hold a listener open forever. Choosing between
+# several Google accounts can take longer, hence --timeout.
 FLOW_TIMEOUT_SECONDS = 300
 
 
-def run_oauth_flow(open_browser: bool = True) -> dict[str, Any]:
+def run_oauth_flow(open_browser: bool = True, timeout_seconds: int = FLOW_TIMEOUT_SECONDS) -> dict[str, Any]:
     """Authorize the app and store the resulting token. Returns the saved payload."""
     from google_auth_oauthlib.flow import InstalledAppFlow
 
@@ -32,11 +32,11 @@ def run_oauth_flow(open_browser: bool = True) -> dict[str, Any]:
     )
 
     if not open_browser:
-        print("Open this URL in a browser on this machine to authorize:", file=sys.stdout)
+        print("Open this URL in a browser on this machine to authorize:")
 
     credentials = flow.run_local_server(
         port=0,
-        timeout_seconds=FLOW_TIMEOUT_SECONDS,
+        timeout_seconds=timeout_seconds,
         open_browser=open_browser,
         authorization_prompt_message="Authorize this app at: {url}",
         success_message="Authorization complete. You can close this window.",
