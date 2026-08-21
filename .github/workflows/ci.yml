@@ -91,7 +91,9 @@ jobs:
           "$FRESH/python" -c "import importlib.metadata as m; print('mcp', m.version('mcp'))"
       - name: Smoke test the stdio transport
         shell: bash
-        run: "$FRESH/python" scripts/smoke_stdio.py --command "$FRESH/mcp-google-search-console" --min-tools 17
+        run: |
+          "$FRESH/python" scripts/smoke_stdio.py \
+            --command "$FRESH/mcp-google-search-console" --min-tools 17
 
   plugin-validate:
     name: plugin and bundle manifests

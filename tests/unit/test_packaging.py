@@ -189,3 +189,18 @@ def test_the_docker_image_runs_as_a_non_root_user():
     dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
     assert "USER gsc" in dockerfile
     assert "MCP_TRANSPORT=streamable-http" in dockerfile
+
+
+def test_every_workflow_file_parses():
+    """A malformed workflow fails the run in zero seconds with no useful message."""
+    yaml = pytest.importorskip("yaml")
+
+    workflows = sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml"))
+    assert workflows, "no workflows found"
+
+    for path in workflows:
+        parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert parsed.get("jobs"), f"{path.name} declares no jobs"
+        for name, job in parsed["jobs"].items():
+            assert job.get("runs-on"), f"{path.name}:{name} has no runner"
+            assert job.get("steps"), f"{path.name}:{name} has no steps"
