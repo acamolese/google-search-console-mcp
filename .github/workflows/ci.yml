@@ -52,7 +52,7 @@ jobs:
       - name: Report installed SDK
         run: python -c "import importlib.metadata as m; print('mcp', m.version('mcp'))"
       - name: Run tests
-        run: pytest -q
+        run: pytest -q --cov=google_search_console_mcp
 
   fresh-install:
     name: fresh install (py${{ matrix.python-version }}, ${{ matrix.os }}, ${{ matrix.mcp }})
