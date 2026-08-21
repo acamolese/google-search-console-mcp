@@ -1,0 +1,1 @@
+{"siteEntry":[{"siteUrl":"sc-domain:example.com","permissionLevel":"siteOwner"},{"siteUrl":"https://shop.example.com/","permissionLevel":"siteFullUser"},{"siteUrl":"https://blog.example.com/","permissionLevel":"siteRestrictedUser"}]}
