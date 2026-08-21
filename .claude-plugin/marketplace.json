@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "acamolese",
+  "description": "Google Search Console tooling for Claude Code, from the maintainer of mcp-google-search-console.",
+  "owner": {
+    "name": "Andrea Camolese",
+    "url": "https://github.com/acamolese"
+  },
+  "plugins": [
+    {
+      "name": "google-search-console",
+      "source": "./",
+      "version": "3.0.0",
+      "description": "Google Search Console for Claude Code: 17 read-only tools and a white-label HTML SEO audit."
+    }
+  ]
+}

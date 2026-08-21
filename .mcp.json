@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "google-search-console": {
+      "command": "uvx",
+      "args": ["mcp-google-search-console"],
+      "env": {
+        "GSC_CLIENT_ID": "${user_config.client_id}",
+        "GSC_CLIENT_SECRET": "${user_config.client_secret}",
+        "GSC_REFRESH_TOKEN": "${user_config.refresh_token}",
+        "GSC_REPORT_LANGUAGE": "${user_config.report_language}"
+      }
+    }
+  }
+}

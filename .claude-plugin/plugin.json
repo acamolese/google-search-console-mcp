@@ -1,0 +1,56 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "google-search-console",
+  "displayName": "Google Search Console",
+  "version": "3.0.0",
+  "description": "Read Google Search Console from Claude Code: performance queries, indexing checks, cannibalisation and CTR analysis, plus a white-label HTML SEO audit in English or Italian.",
+  "author": {
+    "name": "Andrea Camolese",
+    "url": "https://github.com/acamolese"
+  },
+  "homepage": "https://github.com/acamolese/google-search-console-mcp",
+  "repository": "https://github.com/acamolese/google-search-console-mcp",
+  "license": "MIT",
+  "keywords": [
+    "seo",
+    "google-search-console",
+    "gsc",
+    "search-console",
+    "seo-audit",
+    "indexing",
+    "reporting"
+  ],
+  "mcpServers": "./.mcp.json",
+  "skills": [
+    "./skills"
+  ],
+  "userConfig": {
+    "client_id": {
+      "type": "string",
+      "title": "Google OAuth client ID",
+      "description": "From a Desktop app OAuth client in Google Cloud Console, with the Search Console API enabled.",
+      "required": false
+    },
+    "client_secret": {
+      "type": "string",
+      "title": "Google OAuth client secret",
+      "description": "The client secret paired with the client ID above.",
+      "sensitive": true,
+      "required": false
+    },
+    "refresh_token": {
+      "type": "string",
+      "title": "Google OAuth refresh token",
+      "description": "Run `uvx mcp-google-search-console auth` once to obtain it, or leave every field blank to use a token stored on disk.",
+      "sensitive": true,
+      "required": false
+    },
+    "report_language": {
+      "type": "string",
+      "title": "Audit report language",
+      "description": "Language for the generated HTML report: en or it.",
+      "default": "en",
+      "required": false
+    }
+  }
+}
