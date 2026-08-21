@@ -1,9 +1,4 @@
-"""The HTML audit report tool.
-
-3.0.0 keeps the 2.x report intact and only moves it onto the async client; the
-report itself is rebuilt (i18n, self-contained assets, adaptive thresholds) in
-the audit package.
-"""
+"""The HTML audit report tool."""
 
 from __future__ import annotations
 
@@ -13,7 +8,10 @@ from typing import Annotated
 from pydantic import Field
 
 from .. import dates
-from ..audit import generate_audit
+from .._compat import Context, EmbeddedResource, TextResourceContents
+from ..audit import ALL_SECTIONS, run_audit
+from ..config import SUPPORTED_LANGUAGES, Settings
+from ..errors import GSCError
 from ._common import (
     DateFrom,
     DateTo,
@@ -26,8 +24,42 @@ from ._common import (
     tool_errors,
 )
 
+OUTPUT_MODES = ("auto", "file", "inline", "both")
+
+
+def _resolve_output(mode: str) -> str:
+    value = (mode or "auto").strip().lower()
+    if value not in OUTPUT_MODES:
+        raise GSCError(
+            400,
+            f"output must be one of {', '.join(OUTPUT_MODES)}, got {mode!r}.",
+            reason="badRequest",
+        )
+    if value != "auto":
+        return value
+    # Over stdio the client shares the filesystem, so a path is the useful answer.
+    # Over HTTP it does not, so the document has to travel with the response.
+    import os
+
+    return "file" if os.environ.get("MCP_TRANSPORT", "stdio") == "stdio" else "inline"
+
+
+def _check_sections(sections: list[str] | None) -> list[str] | None:
+    if not sections:
+        return None
+    unknown = [name for name in sections if name not in ALL_SECTIONS]
+    if unknown:
+        raise GSCError(
+            400,
+            f"Unknown sections {', '.join(unknown)}. Valid sections: {', '.join(ALL_SECTIONS)}.",
+            reason="badRequest",
+        )
+    return list(sections)
+
 
 def register(mcp) -> None:
+    settings = Settings.from_env()
+
     @mcp.tool(annotations=annotations("Generate an HTML SEO audit"))
     @tool_errors
     async def gsc_audit(
@@ -36,37 +68,105 @@ def register(mcp) -> None:
         date_to: DateTo = "",
         days: Days = None,
         period: Period = "",
+        language: Annotated[
+            str,
+            Field(description=f"Report language: {', '.join(SUPPORTED_LANGUAGES)}. Defaults to en."),
+        ] = "",
+        brand_terms: Annotated[
+            list[str] | None,
+            Field(
+                description=(
+                    "Words that mark a query as branded. Without them the first label "
+                    "of the domain is used, which is often wrong."
+                )
+            ),
+        ] = None,
+        sections: Annotated[
+            list[str] | None,
+            Field(description=f"Subset of sections to render: {', '.join(ALL_SECTIONS)}."),
+        ] = None,
+        output: Annotated[
+            str,
+            Field(
+                description=(
+                    "`file` writes the report and returns its path, `inline` returns the "
+                    "HTML as an embedded resource, `both` does both, `auto` picks by transport."
+                )
+            ),
+        ] = "auto",
         output_dir: Annotated[
             str,
             Field(description="Where to write the report. Defaults to ~/gsc-reports/."),
         ] = "",
         branding_path: Annotated[
             str,
-            Field(description="Path to a branding.json overriding colours, logo and name."),
+            Field(description="Path to a branding.json overriding colours, logo, name and thresholds."),
         ] = "",
-    ) -> str:
-        """Build a complete HTML SEO audit report for one property.
+        inspect_top_pages: Annotated[
+            int,
+            Field(description="How many top pages to run through URL Inspection. 0 disables it."),
+        ] = 10,
+        thresholds: Annotated[
+            dict | None,
+            Field(
+                description=(
+                    "Override the adaptive thresholds: min_impressions, min_clicks, "
+                    "high_visibility_impressions, ctr_curve."
+                )
+            ),
+        ] = None,
+        ctx: Context | None = None,
+    ) -> list:
+        """Build a complete, self-contained HTML SEO audit for one property.
 
-        Runs the overview, the previous-period comparison, top queries and pages,
-        devices, countries, the daily trend, sitemaps and an indexing check on the
-        top 10 pages, detects issues, builds a prioritised strategy and writes a
-        self-contained HTML file.
+        Collects the period and its baseline, top queries and pages, devices,
+        countries, the daily trend, six months of history, sitemaps and an indexing
+        check, then detects issues and builds a prioritised strategy and roadmap.
+        Thresholds adapt to the size of the property, so small sites get a report
+        too. Available in English and Italian.
 
-        Ask the user for the period if they have not named one; the 28-day default
-        is rarely what someone wants in a client report.
+        Ask the user for the period if they have not named one: the 28-day default
+        is rarely what a client report wants.
 
-        Returns JSON with the report path and the range that was actually used.
+        Returns a compact JSON summary first (KPIs with deltas, issue counts, top
+        quick wins, roadmap), so the findings can be discussed without reading the
+        HTML, followed by the report path or the document itself.
         """
         site_url = check_site_url(site_url)
         start, end, label = dates.resolve_range(date_from, date_to, days, period)
-        path = await generate_audit(client(), site_url, start, end, output_dir, branding_path)
-        return json.dumps(
-            {
-                "report_path": path,
-                "site_url": site_url,
-                "date_from": start,
-                "date_to": end,
-                "period": label,
-            },
-            ensure_ascii=False,
+        mode = _resolve_output(output)
+        wanted = _check_sections(sections)
+
+        result = await run_audit(
+            client(),
+            site_url,
+            start,
+            end,
+            language=language,
+            brand_terms=brand_terms,
+            sections=wanted,
+            output_dir=output_dir,
+            branding_path=branding_path,
+            inspect_top_pages=max(0, int(inspect_top_pages or 0)),
+            thresholds=thresholds,
+            write_file=mode in ("file", "both"),
+            settings=settings,
+            ctx=ctx,
         )
+
+        summary = dict(result.summary)
+        summary["period"] = label
+        blocks: list = [json.dumps(summary, ensure_ascii=False, separators=(",", ":"))]
+
+        if mode in ("inline", "both"):
+            blocks.append(
+                EmbeddedResource(
+                    type="resource",
+                    resource=TextResourceContents(
+                        uri=result.resource_uri,
+                        mimeType="text/html",
+                        text=result.html,
+                    ),
+                )
+            )
+        return blocks

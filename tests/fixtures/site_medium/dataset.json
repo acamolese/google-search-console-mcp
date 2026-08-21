@@ -1,0 +1,1079 @@
+{
+  "site_url": "sc-domain:example.com",
+  "date_from": "2026-07-25",
+  "date_to": "2026-08-21",
+  "prev_from": "2026-06-27",
+  "prev_to": "2026-07-24",
+  "data_state": "all",
+  "current": {
+    "clicks": 3590,
+    "impressions": 141800,
+    "ctr": 0.0253,
+    "position": 10.3
+  },
+  "previous": {
+    "clicks": 4300,
+    "impressions": 138900,
+    "ctr": 0.031,
+    "position": 9.7
+  },
+  "queries": [
+    {
+      "query": "exampleco reviews",
+      "clicks": 1087,
+      "impressions": 3913,
+      "ctr": 0.2778,
+      "position": 1.3
+    },
+    {
+      "query": "exampleco shop",
+      "clicks": 1017,
+      "impressions": 3042,
+      "ctr": 0.3343,
+      "position": 2.2
+    },
+    {
+      "query": "exampleco login",
+      "clicks": 706,
+      "impressions": 2554,
+      "ctr": 0.2764,
+      "position": 1.9
+    },
+    {
+      "query": "widget vs gadget",
+      "clicks": 674,
+      "impressions": 7573,
+      "ctr": 0.089,
+      "position": 11.2
+    },
+    {
+      "query": "exampleco",
+      "clicks": 581,
+      "impressions": 1516,
+      "ctr": 0.3832,
+      "position": 1.5
+    },
+    {
+      "query": "widgets",
+      "clicks": 313,
+      "impressions": 6553,
+      "ctr": 0.0478,
+      "position": 9.6
+    },
+    {
+      "query": "widget parts",
+      "clicks": 211,
+      "impressions": 3180,
+      "ctr": 0.0664,
+      "position": 9.1
+    },
+    {
+      "query": "widget repair",
+      "clicks": 189,
+      "impressions": 3172,
+      "ctr": 0.0596,
+      "position": 10.2
+    },
+    {
+      "query": "what is a widget",
+      "clicks": 139,
+      "impressions": 2708,
+      "ctr": 0.0513,
+      "position": 4.4
+    },
+    {
+      "query": "widget sizes",
+      "clicks": 62,
+      "impressions": 1491,
+      "ctr": 0.0416,
+      "position": 9.2
+    },
+    {
+      "query": "widget guide",
+      "clicks": 61,
+      "impressions": 5088,
+      "ctr": 0.012,
+      "position": 15.5
+    },
+    {
+      "query": "how to fix a widget",
+      "clicks": 47,
+      "impressions": 1795,
+      "ctr": 0.0262,
+      "position": 4.7
+    },
+    {
+      "query": "blue widgets",
+      "clicks": 24,
+      "impressions": 6136,
+      "ctr": 0.0039,
+      "position": 12.1
+    },
+    {
+      "query": "cheap widgets",
+      "clicks": 7,
+      "impressions": 1914,
+      "ctr": 0.0037,
+      "position": 13.7
+    }
+  ],
+  "prev_queries": [
+    {
+      "query": "exampleco reviews",
+      "clicks": 1394,
+      "impressions": 3913,
+      "ctr": 0.3562,
+      "position": 1.3
+    },
+    {
+      "query": "exampleco shop",
+      "clicks": 933,
+      "impressions": 3042,
+      "ctr": 0.3067,
+      "position": 1.5
+    },
+    {
+      "query": "exampleco login",
+      "clicks": 801,
+      "impressions": 2554,
+      "ctr": 0.3136,
+      "position": 1.4
+    },
+    {
+      "query": "widget vs gadget",
+      "clicks": 897,
+      "impressions": 7573,
+      "ctr": 0.1184,
+      "position": 11.8
+    },
+    {
+      "query": "exampleco",
+      "clicks": 789,
+      "impressions": 1516,
+      "ctr": 0.5204,
+      "position": 2.6
+    },
+    {
+      "query": "widgets",
+      "clicks": 400,
+      "impressions": 6553,
+      "ctr": 0.061,
+      "position": 9.0
+    },
+    {
+      "query": "widget parts",
+      "clicks": 191,
+      "impressions": 3180,
+      "ctr": 0.0601,
+      "position": 8.6
+    },
+    {
+      "query": "widget repair",
+      "clicks": 167,
+      "impressions": 3172,
+      "ctr": 0.0526,
+      "position": 11.4
+    },
+    {
+      "query": "what is a widget",
+      "clicks": 181,
+      "impressions": 2708,
+      "ctr": 0.0668,
+      "position": 5.9
+    },
+    {
+      "query": "widget sizes",
+      "clicks": 61,
+      "impressions": 1491,
+      "ctr": 0.0409,
+      "position": 9.5
+    },
+    {
+      "query": "widget guide",
+      "clicks": 64,
+      "impressions": 5088,
+      "ctr": 0.0126,
+      "position": 16.3
+    },
+    {
+      "query": "how to fix a widget",
+      "clicks": 41,
+      "impressions": 1795,
+      "ctr": 0.0228,
+      "position": 4.5
+    },
+    {
+      "query": "blue widgets",
+      "clicks": 21,
+      "impressions": 6136,
+      "ctr": 0.0034,
+      "position": 13.1
+    },
+    {
+      "query": "cheap widgets",
+      "clicks": 9,
+      "impressions": 1914,
+      "ctr": 0.0047,
+      "position": 15.0
+    }
+  ],
+  "pages": [
+    {
+      "page": "https://example.com/widgets/14",
+      "clicks": 555,
+      "impressions": 8181,
+      "ctr": 0.0678,
+      "position": 5.1
+    },
+    {
+      "page": "https://example.com/widgets/20",
+      "clicks": 437,
+      "impressions": 6291,
+      "ctr": 0.0695,
+      "position": 17.7
+    },
+    {
+      "page": "https://example.com/widgets/17",
+      "clicks": 420,
+      "impressions": 8601,
+      "ctr": 0.0488,
+      "position": 11.6
+    },
+    {
+      "page": "http://example.com/widgets/legacy",
+      "clicks": 382,
+      "impressions": 10421,
+      "ctr": 0.0367,
+      "position": 12.9
+    },
+    {
+      "page": "https://example.com/widgets/4",
+      "clicks": 346,
+      "impressions": 6792,
+      "ctr": 0.0509,
+      "position": 12.2
+    },
+    {
+      "page": "https://example.com/widgets/0",
+      "clicks": 334,
+      "impressions": 4795,
+      "ctr": 0.0697,
+      "position": 3.4
+    },
+    {
+      "page": "https://example.com/widgets/12",
+      "clicks": 319,
+      "impressions": 8734,
+      "ctr": 0.0365,
+      "position": 7.6
+    },
+    {
+      "page": "https://example.com/widgets/9",
+      "clicks": 286,
+      "impressions": 5137,
+      "ctr": 0.0557,
+      "position": 9.9
+    },
+    {
+      "page": "https://example.com/widgets/21",
+      "clicks": 283,
+      "impressions": 6642,
+      "ctr": 0.0426,
+      "position": 3.5
+    },
+    {
+      "page": "https://example.com/widgets/3",
+      "clicks": 260,
+      "impressions": 10320,
+      "ctr": 0.0252,
+      "position": 4.5
+    },
+    {
+      "page": "https://example.com/widgets/list?p=2",
+      "clicks": 212,
+      "impressions": 4422,
+      "ctr": 0.0479,
+      "position": 5.9
+    },
+    {
+      "page": "https://www.example.com/widgets/duplicate",
+      "clicks": 189,
+      "impressions": 9343,
+      "ctr": 0.0202,
+      "position": 14.7
+    },
+    {
+      "page": "https://example.com/widgets/11",
+      "clicks": 152,
+      "impressions": 5910,
+      "ctr": 0.0257,
+      "position": 16.4
+    },
+    {
+      "page": "https://example.com/widgets/23",
+      "clicks": 147,
+      "impressions": 9006,
+      "ctr": 0.0163,
+      "position": 9.6
+    },
+    {
+      "page": "https://example.com/widgets/10",
+      "clicks": 130,
+      "impressions": 2956,
+      "ctr": 0.044,
+      "position": 14.9
+    },
+    {
+      "page": "https://example.com/widgets/1",
+      "clicks": 110,
+      "impressions": 11389,
+      "ctr": 0.0097,
+      "position": 6.7
+    },
+    {
+      "page": "https://example.com/widgets/13",
+      "clicks": 82,
+      "impressions": 5705,
+      "ctr": 0.0144,
+      "position": 4.2
+    },
+    {
+      "page": "https://example.com/widgets/16",
+      "clicks": 73,
+      "impressions": 5173,
+      "ctr": 0.0141,
+      "position": 8.8
+    },
+    {
+      "page": "https://example.com/widgets/22",
+      "clicks": 63,
+      "impressions": 6730,
+      "ctr": 0.0094,
+      "position": 16.4
+    },
+    {
+      "page": "https://example.com/widgets/15",
+      "clicks": 31,
+      "impressions": 551,
+      "ctr": 0.0563,
+      "position": 5.7
+    },
+    {
+      "page": "https://example.com/widgets/2",
+      "clicks": 28,
+      "impressions": 9505,
+      "ctr": 0.0029,
+      "position": 13.5
+    },
+    {
+      "page": "https://example.com/widgets/19",
+      "clicks": 27,
+      "impressions": 584,
+      "ctr": 0.0462,
+      "position": 4.7
+    },
+    {
+      "page": "https://example.com/widgets/7",
+      "clicks": 26,
+      "impressions": 8691,
+      "ctr": 0.003,
+      "position": 9.7
+    },
+    {
+      "page": "https://example.com/widgets/18",
+      "clicks": 8,
+      "impressions": 530,
+      "ctr": 0.0151,
+      "position": 13.6
+    }
+  ],
+  "prev_pages": [
+    {
+      "page": "https://example.com/widgets/14",
+      "clicks": 691,
+      "impressions": 10187,
+      "ctr": 0.0678,
+      "position": 5.4
+    },
+    {
+      "page": "https://example.com/widgets/20",
+      "clicks": 961,
+      "impressions": 13840,
+      "ctr": 0.0694,
+      "position": 17.9
+    },
+    {
+      "page": "https://example.com/widgets/17",
+      "clicks": 411,
+      "impressions": 8436,
+      "ctr": 0.0487,
+      "position": 12.5
+    },
+    {
+      "page": "http://example.com/widgets/legacy",
+      "clicks": 840,
+      "impressions": 22926,
+      "ctr": 0.0366,
+      "position": 13.0
+    },
+    {
+      "page": "https://example.com/widgets/4",
+      "clicks": 321,
+      "impressions": 6317,
+      "ctr": 0.0508,
+      "position": 13.2
+    },
+    {
+      "page": "https://example.com/widgets/0",
+      "clicks": 407,
+      "impressions": 5846,
+      "ctr": 0.0696,
+      "position": 3.0
+    },
+    {
+      "page": "https://example.com/widgets/12",
+      "clicks": 332,
+      "impressions": 9113,
+      "ctr": 0.0364,
+      "position": 8.1
+    },
+    {
+      "page": "https://example.com/widgets/9",
+      "clicks": 302,
+      "impressions": 5431,
+      "ctr": 0.0556,
+      "position": 9.7
+    },
+    {
+      "page": "https://example.com/widgets/21",
+      "clicks": 270,
+      "impressions": 6352,
+      "ctr": 0.0425,
+      "position": 2.7
+    },
+    {
+      "page": "https://example.com/widgets/3",
+      "clicks": 310,
+      "impressions": 12318,
+      "ctr": 0.0252,
+      "position": 3.9
+    },
+    {
+      "page": "https://example.com/widgets/list?p=2",
+      "clicks": 198,
+      "impressions": 4140,
+      "ctr": 0.0478,
+      "position": 5.1
+    },
+    {
+      "page": "https://www.example.com/widgets/duplicate",
+      "clicks": 217,
+      "impressions": 10760,
+      "ctr": 0.0202,
+      "position": 13.9
+    },
+    {
+      "page": "https://example.com/widgets/11",
+      "clicks": 124,
+      "impressions": 4841,
+      "ctr": 0.0256,
+      "position": 16.2
+    },
+    {
+      "page": "https://example.com/widgets/23",
+      "clicks": 129,
+      "impressions": 7949,
+      "ctr": 0.0162,
+      "position": 8.9
+    },
+    {
+      "page": "https://example.com/widgets/10",
+      "clicks": 104,
+      "impressions": 2371,
+      "ctr": 0.0439,
+      "position": 15.7
+    },
+    {
+      "page": "https://example.com/widgets/1",
+      "clicks": 94,
+      "impressions": 9789,
+      "ctr": 0.0096,
+      "position": 6.3
+    },
+    {
+      "page": "https://example.com/widgets/13",
+      "clicks": 68,
+      "impressions": 4751,
+      "ctr": 0.0143,
+      "position": 4.9
+    },
+    {
+      "page": "https://example.com/widgets/16",
+      "clicks": 85,
+      "impressions": 6045,
+      "ctr": 0.0141,
+      "position": 7.9
+    },
+    {
+      "page": "https://example.com/widgets/22",
+      "clicks": 69,
+      "impressions": 7441,
+      "ctr": 0.0093,
+      "position": 16.4
+    },
+    {
+      "page": "https://example.com/widgets/15",
+      "clicks": 38,
+      "impressions": 677,
+      "ctr": 0.0561,
+      "position": 4.7
+    },
+    {
+      "page": "https://example.com/widgets/2",
+      "clicks": 35,
+      "impressions": 11890,
+      "ctr": 0.0029,
+      "position": 13.2
+    },
+    {
+      "page": "https://example.com/widgets/19",
+      "clicks": 29,
+      "impressions": 629,
+      "ctr": 0.0461,
+      "position": 4.1
+    },
+    {
+      "page": "https://example.com/widgets/7",
+      "clicks": 31,
+      "impressions": 10457,
+      "ctr": 0.003,
+      "position": 8.7
+    },
+    {
+      "page": "https://example.com/widgets/18",
+      "clicks": 8,
+      "impressions": 557,
+      "ctr": 0.0144,
+      "position": 12.9
+    }
+  ],
+  "devices": [
+    {
+      "device": "MOBILE",
+      "clicks": 2100,
+      "impressions": 96000,
+      "ctr": 0.0219,
+      "position": 11.4
+    },
+    {
+      "device": "DESKTOP",
+      "clicks": 1400,
+      "impressions": 42000,
+      "ctr": 0.0333,
+      "position": 8.1
+    },
+    {
+      "device": "TABLET",
+      "clicks": 90,
+      "impressions": 3800,
+      "ctr": 0.0237,
+      "position": 12.2
+    }
+  ],
+  "countries": [
+    {
+      "country": "usa",
+      "clicks": 2400,
+      "impressions": 88000,
+      "ctr": 0.0273,
+      "position": 9.8
+    },
+    {
+      "country": "gbr",
+      "clicks": 700,
+      "impressions": 24000,
+      "ctr": 0.0292,
+      "position": 10.4
+    },
+    {
+      "country": "irl",
+      "clicks": 260,
+      "impressions": 7400,
+      "ctr": 0.0351,
+      "position": 9.1
+    },
+    {
+      "country": "aus",
+      "clicks": 180,
+      "impressions": 9000,
+      "ctr": 0.02,
+      "position": 14.6
+    }
+  ],
+  "trend": [
+    {
+      "date": "2026-07-25",
+      "clicks": 135,
+      "impressions": 5686,
+      "ctr": 0.0237,
+      "position": 11.3
+    },
+    {
+      "date": "2026-07-26",
+      "clicks": 184,
+      "impressions": 3656,
+      "ctr": 0.0503,
+      "position": 9.9
+    },
+    {
+      "date": "2026-07-27",
+      "clicks": 160,
+      "impressions": 4023,
+      "ctr": 0.0398,
+      "position": 9.5
+    },
+    {
+      "date": "2026-07-28",
+      "clicks": 91,
+      "impressions": 5670,
+      "ctr": 0.016,
+      "position": 8.8
+    },
+    {
+      "date": "2026-07-29",
+      "clicks": 153,
+      "impressions": 5754,
+      "ctr": 0.0266,
+      "position": 10.8
+    },
+    {
+      "date": "2026-07-30",
+      "clicks": 138,
+      "impressions": 5145,
+      "ctr": 0.0268,
+      "position": 10.2
+    },
+    {
+      "date": "2026-07-31",
+      "clicks": 158,
+      "impressions": 3064,
+      "ctr": 0.0516,
+      "position": 9.0
+    },
+    {
+      "date": "2026-08-01",
+      "clicks": 121,
+      "impressions": 4390,
+      "ctr": 0.0276,
+      "position": 10.6
+    },
+    {
+      "date": "2026-08-02",
+      "clicks": 173,
+      "impressions": 4102,
+      "ctr": 0.0422,
+      "position": 11.2
+    },
+    {
+      "date": "2026-08-03",
+      "clicks": 90,
+      "impressions": 6408,
+      "ctr": 0.014,
+      "position": 10.4
+    },
+    {
+      "date": "2026-08-04",
+      "clicks": 156,
+      "impressions": 6428,
+      "ctr": 0.0243,
+      "position": 11.7
+    },
+    {
+      "date": "2026-08-05",
+      "clicks": 129,
+      "impressions": 4746,
+      "ctr": 0.0272,
+      "position": 11.8
+    },
+    {
+      "date": "2026-08-06",
+      "clicks": 96,
+      "impressions": 5863,
+      "ctr": 0.0164,
+      "position": 9.5
+    },
+    {
+      "date": "2026-08-07",
+      "clicks": 172,
+      "impressions": 5735,
+      "ctr": 0.03,
+      "position": 9.1
+    },
+    {
+      "date": "2026-08-08",
+      "clicks": 100,
+      "impressions": 6293,
+      "ctr": 0.0159,
+      "position": 10.5
+    },
+    {
+      "date": "2026-08-09",
+      "clicks": 90,
+      "impressions": 3935,
+      "ctr": 0.0229,
+      "position": 8.6
+    },
+    {
+      "date": "2026-08-10",
+      "clicks": 165,
+      "impressions": 3808,
+      "ctr": 0.0433,
+      "position": 11.4
+    },
+    {
+      "date": "2026-08-11",
+      "clicks": 98,
+      "impressions": 6010,
+      "ctr": 0.0163,
+      "position": 9.8
+    },
+    {
+      "date": "2026-08-12",
+      "clicks": 111,
+      "impressions": 3010,
+      "ctr": 0.0369,
+      "position": 10.0
+    },
+    {
+      "date": "2026-08-13",
+      "clicks": 88,
+      "impressions": 5946,
+      "ctr": 0.0148,
+      "position": 11.6
+    },
+    {
+      "date": "2026-08-14",
+      "clicks": 185,
+      "impressions": 3017,
+      "ctr": 0.0613,
+      "position": 11.7
+    },
+    {
+      "date": "2026-08-15",
+      "clicks": 189,
+      "impressions": 4752,
+      "ctr": 0.0398,
+      "position": 8.5
+    },
+    {
+      "date": "2026-08-16",
+      "clicks": 147,
+      "impressions": 3598,
+      "ctr": 0.0409,
+      "position": 9.7
+    },
+    {
+      "date": "2026-08-17",
+      "clicks": 160,
+      "impressions": 4527,
+      "ctr": 0.0353,
+      "position": 11.6
+    },
+    {
+      "date": "2026-08-18",
+      "clicks": 146,
+      "impressions": 4820,
+      "ctr": 0.0303,
+      "position": 9.4
+    },
+    {
+      "date": "2026-08-19",
+      "clicks": 157,
+      "impressions": 4830,
+      "ctr": 0.0325,
+      "position": 9.2
+    },
+    {
+      "date": "2026-08-20",
+      "clicks": 84,
+      "impressions": 4254,
+      "ctr": 0.0197,
+      "position": 8.6
+    },
+    {
+      "date": "2026-08-21",
+      "clicks": 183,
+      "impressions": 5860,
+      "ctr": 0.0312,
+      "position": 10.3
+    }
+  ],
+  "query_page": [
+    {
+      "query": "exampleco reviews",
+      "page": "https://example.com/widgets/0",
+      "clicks": 543,
+      "impressions": 1956,
+      "ctr": 0.2776,
+      "position": 1.3
+    },
+    {
+      "query": "exampleco shop",
+      "page": "https://example.com/widgets/0",
+      "clicks": 508,
+      "impressions": 1521,
+      "ctr": 0.334,
+      "position": 2.2
+    },
+    {
+      "query": "exampleco login",
+      "page": "https://example.com/widgets/0",
+      "clicks": 353,
+      "impressions": 1277,
+      "ctr": 0.2764,
+      "position": 1.9
+    },
+    {
+      "query": "widget vs gadget",
+      "page": "https://example.com/widgets/0",
+      "clicks": 337,
+      "impressions": 3786,
+      "ctr": 0.089,
+      "position": 11.2
+    },
+    {
+      "query": "exampleco",
+      "page": "https://example.com/widgets/0",
+      "clicks": 290,
+      "impressions": 758,
+      "ctr": 0.3826,
+      "position": 1.5
+    },
+    {
+      "query": "widgets",
+      "page": "https://example.com/widgets/0",
+      "clicks": 156,
+      "impressions": 3276,
+      "ctr": 0.0476,
+      "position": 9.6
+    },
+    {
+      "query": "widgets",
+      "page": "https://example.com/widgets/1",
+      "clicks": 78,
+      "impressions": 1638,
+      "ctr": 0.0476,
+      "position": 10.6
+    },
+    {
+      "query": "widgets",
+      "page": "https://example.com/widgets/2",
+      "clicks": 78,
+      "impressions": 1638,
+      "ctr": 0.0476,
+      "position": 11.6
+    },
+    {
+      "query": "widget parts",
+      "page": "https://example.com/widgets/0",
+      "clicks": 105,
+      "impressions": 1590,
+      "ctr": 0.066,
+      "position": 9.1
+    },
+    {
+      "query": "widget repair",
+      "page": "https://example.com/widgets/0",
+      "clicks": 94,
+      "impressions": 1586,
+      "ctr": 0.0593,
+      "position": 10.2
+    }
+  ],
+  "monthly_by_page": {
+    "https://example.com/widgets/14": [
+      [
+        "2026-03",
+        555
+      ],
+      [
+        "2026-04",
+        499
+      ],
+      [
+        "2026-05",
+        388
+      ],
+      [
+        "2026-06",
+        305
+      ],
+      [
+        "2026-07",
+        222
+      ],
+      [
+        "2026-08",
+        166
+      ]
+    ],
+    "https://example.com/widgets/20": [
+      [
+        "2026-03",
+        438
+      ],
+      [
+        "2026-04",
+        435
+      ],
+      [
+        "2026-05",
+        443
+      ],
+      [
+        "2026-06",
+        434
+      ],
+      [
+        "2026-07",
+        432
+      ],
+      [
+        "2026-08",
+        432
+      ]
+    ],
+    "https://example.com/widgets/17": [
+      [
+        "2026-03",
+        415
+      ],
+      [
+        "2026-04",
+        412
+      ],
+      [
+        "2026-05",
+        420
+      ],
+      [
+        "2026-06",
+        414
+      ],
+      [
+        "2026-07",
+        416
+      ],
+      [
+        "2026-08",
+        427
+      ]
+    ],
+    "http://example.com/widgets/legacy": [
+      [
+        "2026-03",
+        389
+      ],
+      [
+        "2026-04",
+        381
+      ],
+      [
+        "2026-05",
+        374
+      ],
+      [
+        "2026-06",
+        384
+      ],
+      [
+        "2026-07",
+        374
+      ],
+      [
+        "2026-08",
+        379
+      ]
+    ],
+    "https://example.com/widgets/4": [
+      [
+        "2026-03",
+        343
+      ],
+      [
+        "2026-04",
+        343
+      ],
+      [
+        "2026-05",
+        353
+      ],
+      [
+        "2026-06",
+        343
+      ],
+      [
+        "2026-07",
+        340
+      ],
+      [
+        "2026-08",
+        343
+      ]
+    ],
+    "https://example.com/widgets/0": [
+      [
+        "2026-03",
+        338
+      ],
+      [
+        "2026-04",
+        334
+      ],
+      [
+        "2026-05",
+        331
+      ],
+      [
+        "2026-06",
+        340
+      ],
+      [
+        "2026-07",
+        332
+      ],
+      [
+        "2026-08",
+        339
+      ]
+    ]
+  },
+  "sitemaps": [
+    {
+      "path": "https://example.com/sitemap.xml",
+      "lastSubmitted": "2026-08-01T09:12:33.000Z",
+      "lastDownloaded": "2026-08-20T04:11:02.000Z",
+      "isPending": false,
+      "isSitemapsIndex": true,
+      "warnings": "4",
+      "errors": "1"
+    }
+  ],
+  "indexing": [
+    {
+      "url": "https://example.com/widgets/14",
+      "verdict": "PASS",
+      "coverage_state": "Submitted and indexed"
+    },
+    {
+      "url": "https://example.com/widgets/20",
+      "verdict": "FAIL",
+      "coverage_state": "Duplicate, Google chose different canonical than user"
+    },
+    {
+      "url": "https://example.com/widgets/17",
+      "verdict": "PASS",
+      "coverage_state": "Submitted and indexed"
+    }
+  ]
+}

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from pathlib import Path
 
 import httpx
 import respx
@@ -74,9 +75,11 @@ def mock_everything(latency: float = 0.0):
             await asyncio.sleep(latency)
         return httpx.Response(200, json=load_fixture("sitemaps.json"))
 
-    respx.post(QUERY_URL).mock(side_effect=analytics)
-    respx.post(INSPECT_URL).mock(side_effect=inspect)
-    respx.get(SITEMAPS_URL).mock(side_effect=sitemaps)
+    return {
+        "analytics": respx.post(QUERY_URL).mock(side_effect=analytics),
+        "inspect": respx.post(INSPECT_URL).mock(side_effect=inspect),
+        "sitemaps": respx.get(SITEMAPS_URL).mock(side_effect=sitemaps),
+    }
 
 
 @respx.mock
@@ -98,7 +101,8 @@ async def test_the_audit_writes_a_report_and_returns_its_path(server, wired_clie
     report = tmp_path / "example_com_2026-08-01_2026-08-21.html"
 
     assert payload["report_path"] == str(report)
-    assert payload["date_from"] == "2026-08-01"
+    assert payload["range"] == ["2026-08-01", "2026-08-21"]
+    assert payload["previous"] == ["2026-07-11", "2026-07-31"]
     assert report.exists()
 
     html = report.read_text(encoding="utf-8")
@@ -118,7 +122,7 @@ async def test_the_audit_resolves_a_named_period_like_the_other_tools(server, wi
 
     payload = json.loads(text)
     assert payload["period"] == "last_month"
-    assert payload["date_from"].endswith("-01")
+    assert payload["range"][0].endswith("-01")
 
 
 @respx.mock
@@ -162,3 +166,123 @@ async def test_ten_inspections_with_one_second_latency_finish_quickly(server, wi
     assert "rows=10" in text
     # Concurrency 5 means two waves of one second, not ten.
     assert elapsed < 5
+
+
+@respx.mock
+async def test_the_audit_can_return_the_document_inline(server, wired_client, monkeypatch):
+    mock_everything()
+
+    result = await server.call_tool(
+        "gsc_audit",
+        {
+            "site_url": SITE,
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-21",
+            "output": "inline",
+        },
+    )
+    content = getattr(result, "content", None) or (result[0] if isinstance(result, tuple) else result)
+
+    summary = json.loads(content[0].text)
+    assert "report_path" not in summary
+
+    resource = content[1].resource
+    # The field is camelCase on mcp 1.x and snake_case on 2.x.
+    mime = getattr(resource, "mimeType", None) or resource.mime_type
+    assert mime == "text/html"
+    assert str(resource.uri).startswith("gsc-report://example_com/")
+    assert resource.text.startswith("<!DOCTYPE html>")
+
+
+@respx.mock
+async def test_both_writes_the_file_and_returns_the_document(server, wired_client, tmp_path):
+    mock_everything()
+
+    result = await server.call_tool(
+        "gsc_audit",
+        {
+            "site_url": SITE,
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-21",
+            "output": "both",
+            "output_dir": str(tmp_path),
+        },
+    )
+    content = getattr(result, "content", None) or (result[0] if isinstance(result, tuple) else result)
+
+    summary = json.loads(content[0].text)
+    assert Path(summary["report_path"]).exists()
+    assert len(content) == 2
+
+
+@respx.mock
+async def test_the_audit_renders_in_the_requested_language(server, wired_client, tmp_path):
+    mock_everything()
+
+    text, _ = await call_tool(
+        server,
+        "gsc_audit",
+        {
+            "site_url": SITE,
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-21",
+            "language": "it",
+            "output_dir": str(tmp_path),
+        },
+    )
+
+    summary = json.loads(text)
+    assert summary["language"] == "it"
+    html = Path(summary["report_path"]).read_text(encoding="utf-8")
+    assert '<html lang="it"' in html
+    assert "Performance generale" in html
+
+
+@respx.mock
+async def test_explicit_brand_terms_beat_the_domain_guess(server, wired_client, tmp_path):
+    mock_everything()
+
+    text, _ = await call_tool(
+        server,
+        "gsc_audit",
+        {
+            "site_url": SITE,
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-21",
+            "brand_terms": ["example brand"],
+            "output_dir": str(tmp_path),
+        },
+    )
+
+    summary = json.loads(text)
+    assert summary["brand"]["source"] == "explicit"
+    assert summary["brand"]["terms"] == ["example brand"]
+
+
+@respx.mock
+async def test_an_unknown_section_is_refused_before_any_request(server, wired_client):
+    route = respx.post(QUERY_URL).mock(return_value=httpx.Response(200, json={}))
+
+    text, _ = await call_tool(server, "gsc_audit", {"site_url": SITE, "sections": ["overview", "nonsense"]})
+
+    assert route.call_count == 0
+    assert "nonsense" in text
+
+
+@respx.mock
+async def test_inspections_can_be_switched_off(server, wired_client, tmp_path):
+    routes = mock_everything()
+
+    await call_tool(
+        server,
+        "gsc_audit",
+        {
+            "site_url": SITE,
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-21",
+            "inspect_top_pages": 0,
+            "output_dir": str(tmp_path),
+        },
+    )
+
+    assert routes["inspect"].call_count == 0
