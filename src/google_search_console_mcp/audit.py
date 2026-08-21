@@ -2,6 +2,7 @@
 
 import base64
 import json
+import logging
 import mimetypes
 import re
 import urllib.parse
@@ -13,9 +14,10 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from . import config as app_config
 
-
 BASE = "https://www.googleapis.com/webmasters/v3"
 INSPECT_BASE = "https://searchconsole.googleapis.com/v1"
+
+logger = logging.getLogger(__name__)
 
 PACKAGE_DIR = Path(__file__).parent
 TEMPLATES_DIR = PACKAGE_DIR / "templates"
@@ -25,6 +27,7 @@ BUILTIN_BRANDING = PACKAGE_DIR / "branding.json"
 # ---------------------------------------------------------------------------
 # Period and naming helpers
 # ---------------------------------------------------------------------------
+
 
 def previous_period(date_from: str, date_to: str) -> tuple[str, str]:
     d_from = date.fromisoformat(date_from)
@@ -107,6 +110,7 @@ def _resolve_branding_path(branding_path: str) -> Path:
 def load_branding(branding_path: str = "") -> dict:
     """Load branding config from JSON, falling back to defaults."""
     import copy
+
     branding = copy.deepcopy(DEFAULT_BRANDING_DICT)
     path = _resolve_branding_path(branding_path)
     if path.exists():
@@ -115,8 +119,8 @@ def load_branding(branding_path: str = "") -> dict:
             if "colors" in user:
                 branding["colors"].update(user.pop("colors"))
             branding.update(user)
-        except Exception:
-            pass
+        except Exception:  # noqa: BLE001 - a broken branding file must not break the report
+            logger.warning("Ignoring unreadable branding file %s", path)
     branding["logo_data"] = _embed_logo(branding.get("logo", ""))
     return branding
 
@@ -124,6 +128,7 @@ def load_branding(branding_path: str = "") -> dict:
 # ---------------------------------------------------------------------------
 # Data collection
 # ---------------------------------------------------------------------------
+
 
 def _query(api_post, site_url: str, body: dict) -> list[dict]:
     encoded = urllib.parse.quote(site_url, safe="")
@@ -150,36 +155,72 @@ def collect_data(api_get, api_post, site_url: str, date_from: str, date_to: str)
     current = _overview(api_post, site_url, date_from, date_to)
     previous = _overview(api_post, site_url, prev_from, prev_to)
 
-    top_queries = _query(api_post, site_url, {
-        "startDate": date_from, "endDate": date_to,
-        "dimensions": ["query"], "rowLimit": 50,
-    })
-    top_pages = _query(api_post, site_url, {
-        "startDate": date_from, "endDate": date_to,
-        "dimensions": ["page"], "rowLimit": 50,
-    })
-    devices = _query(api_post, site_url, {
-        "startDate": date_from, "endDate": date_to,
-        "dimensions": ["device"],
-    })
-    countries = _query(api_post, site_url, {
-        "startDate": date_from, "endDate": date_to,
-        "dimensions": ["country"], "rowLimit": 15,
-    })
-    trend = _query(api_post, site_url, {
-        "startDate": date_from, "endDate": date_to,
-        "dimensions": ["date"], "rowLimit": 1000,
-    })
-    query_page = _query(api_post, site_url, {
-        "startDate": date_from, "endDate": date_to,
-        "dimensions": ["query", "page"], "rowLimit": 500,
-    })
+    top_queries = _query(
+        api_post,
+        site_url,
+        {
+            "startDate": date_from,
+            "endDate": date_to,
+            "dimensions": ["query"],
+            "rowLimit": 50,
+        },
+    )
+    top_pages = _query(
+        api_post,
+        site_url,
+        {
+            "startDate": date_from,
+            "endDate": date_to,
+            "dimensions": ["page"],
+            "rowLimit": 50,
+        },
+    )
+    devices = _query(
+        api_post,
+        site_url,
+        {
+            "startDate": date_from,
+            "endDate": date_to,
+            "dimensions": ["device"],
+        },
+    )
+    countries = _query(
+        api_post,
+        site_url,
+        {
+            "startDate": date_from,
+            "endDate": date_to,
+            "dimensions": ["country"],
+            "rowLimit": 15,
+        },
+    )
+    trend = _query(
+        api_post,
+        site_url,
+        {
+            "startDate": date_from,
+            "endDate": date_to,
+            "dimensions": ["date"],
+            "rowLimit": 1000,
+        },
+    )
+    query_page = _query(
+        api_post,
+        site_url,
+        {
+            "startDate": date_from,
+            "endDate": date_to,
+            "dimensions": ["query", "page"],
+            "rowLimit": 500,
+        },
+    )
 
     encoded = urllib.parse.quote(site_url, safe="")
     try:
         sitemaps_data = api_get(f"{BASE}/sites/{encoded}/sitemaps")
         sitemaps = sitemaps_data.get("sitemap", [])
-    except Exception:
+    except Exception:  # noqa: BLE001 - sitemaps are optional in the report
+        logger.warning("Could not read sitemaps for %s", site_url)
         sitemaps = []
 
     indexing = []
@@ -191,12 +232,14 @@ def collect_data(api_get, api_post, site_url: str, date_from: str, date_to: str)
                 {"inspectionUrl": page_url, "siteUrl": site_url},
             )
             result = data.get("inspectionResult", {}).get("indexStatusResult", {})
-            indexing.append({
-                "url": page_url,
-                "verdict": result.get("verdict", "UNKNOWN"),
-                "coverageState": result.get("coverageState", ""),
-            })
-        except Exception as e:
+            indexing.append(
+                {
+                    "url": page_url,
+                    "verdict": result.get("verdict", "UNKNOWN"),
+                    "coverageState": result.get("coverageState", ""),
+                }
+            )
+        except Exception as e:  # noqa: BLE001 - one failing URL must not abort the batch
             indexing.append({"url": page_url, "verdict": "ERROR", "coverageState": str(e)[:100]})
 
     # Flatten row records: copy `clicks`, `impressions`, `ctr`, `position` on top level
@@ -232,6 +275,7 @@ def collect_data(api_get, api_post, site_url: str, date_from: str, date_to: str)
 # Issue detection
 # ---------------------------------------------------------------------------
 
+
 def detect_issues(data: dict) -> list[dict]:
     issues = []
 
@@ -240,46 +284,60 @@ def detect_issues(data: dict) -> list[dict]:
     if paginated:
         total_clicks = sum(p.get("clicks", 0) for p in paginated)
         examples = [
-            {"url": p["keys"][0], "clicks": int(p.get("clicks", 0)), "impressions": int(p.get("impressions", 0)), "position": f"{p.get('position', 0):.1f}"}
+            {
+                "url": p["keys"][0],
+                "clicks": int(p.get("clicks", 0)),
+                "impressions": int(p.get("impressions", 0)),
+                "position": f"{p.get('position', 0):.1f}",
+            }
             for p in sorted(paginated, key=lambda x: x.get("clicks", 0), reverse=True)[:10]
         ]
-        issues.append({
-            "severity": "high",
-            "category": "Indicizzazione",
-            "title": f"{len(paginated)} pagine paginate indicizzate",
-            "description": f"Le pagine paginate generano {int(total_clicks)} click complessivi e cannibalizzano le pagine principali della categoria. Google può scegliere canonicale diverso da quello dichiarato.",
-            "examples": {"type": "pages", "rows": examples},
-            "strategy": [
-                "Aggiungere <link rel=\"canonical\"> su tutte le pagine paginate puntando alla prima pagina della categoria",
-                "Verificare in GSC con URL Inspection che Google rispetti il canonical dichiarato",
-                "In alternativa, valutare infinite scroll con history.pushState che mantiene l'URL principale",
-                "Controllare che le paginate non siano linkate dalla sitemap XML",
-                "Se le pagine 2+ hanno contenuti unici necessari per SEO, considerare una strategia rel=prev/next oppure URL SEO-friendly con titoli differenziati",
-            ],
-        })
+        issues.append(
+            {
+                "severity": "high",
+                "category": "Indicizzazione",
+                "title": f"{len(paginated)} pagine paginate indicizzate",
+                "description": f"Le pagine paginate generano {int(total_clicks)} click complessivi e cannibalizzano le pagine principali della categoria. Google può scegliere canonicale diverso da quello dichiarato.",
+                "examples": {"type": "pages", "rows": examples},
+                "strategy": [
+                    'Aggiungere <link rel="canonical"> su tutte le pagine paginate puntando alla prima pagina della categoria',
+                    "Verificare in GSC con URL Inspection che Google rispetti il canonical dichiarato",
+                    "In alternativa, valutare infinite scroll con history.pushState che mantiene l'URL principale",
+                    "Controllare che le paginate non siano linkate dalla sitemap XML",
+                    "Se le pagine 2+ hanno contenuti unici necessari per SEO, considerare una strategia rel=prev/next oppure URL SEO-friendly con titoli differenziati",
+                ],
+            }
+        )
 
     # --- HTTP version ---------------------------------------------------------
     http_pages = [p for p in data["top_pages"] if p["keys"][0].startswith("http://")]
     if http_pages:
         total_clicks = sum(p.get("clicks", 0) for p in http_pages)
         examples = [
-            {"url": p["keys"][0], "clicks": int(p.get("clicks", 0)), "impressions": int(p.get("impressions", 0)), "position": f"{p.get('position', 0):.1f}"}
+            {
+                "url": p["keys"][0],
+                "clicks": int(p.get("clicks", 0)),
+                "impressions": int(p.get("impressions", 0)),
+                "position": f"{p.get('position', 0):.1f}",
+            }
             for p in sorted(http_pages, key=lambda x: x.get("clicks", 0), reverse=True)[:10]
         ]
-        issues.append({
-            "severity": "high",
-            "category": "Tecnico",
-            "title": "Versione HTTP ancora indicizzata",
-            "description": f"Rilevate {len(http_pages)} pagine HTTP con {int(total_clicks)} click nel periodo. La coesistenza di versione HTTP e HTTPS in indice diluisce i segnali SEO e può generare contenuti duplicati.",
-            "examples": {"type": "pages", "rows": examples},
-            "strategy": [
-                "Configurare redirect 301 permanente da http:// a https:// a livello server (Apache/Nginx/CDN)",
-                "Verificare che HSTS sia attivo con max-age di almeno un anno",
-                "Aggiornare la sitemap XML con solo URL HTTPS e risottometterla",
-                "Verificare con curl -I che ogni URL HTTP risponda 301 e non 302",
-                "Richiedere la reindicizzazione delle versioni HTTPS tramite URL Inspection",
-            ],
-        })
+        issues.append(
+            {
+                "severity": "high",
+                "category": "Tecnico",
+                "title": "Versione HTTP ancora indicizzata",
+                "description": f"Rilevate {len(http_pages)} pagine HTTP con {int(total_clicks)} click nel periodo. La coesistenza di versione HTTP e HTTPS in indice diluisce i segnali SEO e può generare contenuti duplicati.",
+                "examples": {"type": "pages", "rows": examples},
+                "strategy": [
+                    "Configurare redirect 301 permanente da http:// a https:// a livello server (Apache/Nginx/CDN)",
+                    "Verificare che HSTS sia attivo con max-age di almeno un anno",
+                    "Aggiornare la sitemap XML con solo URL HTTPS e risottometterla",
+                    "Verificare con curl -I che ogni URL HTTP risponda 301 e non 302",
+                    "Richiedere la reindicizzazione delle versioni HTTPS tramite URL Inspection",
+                ],
+            }
+        )
 
     # --- Host mix -------------------------------------------------------------
     hostnames = set()
@@ -295,136 +353,177 @@ def detect_issues(data: dict) -> list[dict]:
             if "://" in url:
                 host = url.split("://")[1].split("/")[0]
                 mixed_pages[host] = mixed_pages.get(host, 0) + int(p.get("clicks", 0))
-        examples_rows = [{"host": h, "clicks": c} for h, c in sorted(mixed_pages.items(), key=lambda x: -x[1])]
-        issues.append({
-            "severity": "medium",
-            "category": "Tecnico",
-            "title": "Host multipli indicizzati (www e non-www)",
-            "description": f"Rilevati {len(hostnames)} hostname diversi che generano traffico: {', '.join(sorted(hostnames))}. Senza una versione canonica unica, i backlink e i segnali di autorità vengono distribuiti.",
-            "examples": {"type": "hosts", "rows": examples_rows},
-            "strategy": [
-                "Scegliere una versione canonica (raccomandato: con www) e impostare redirect 301 da tutte le altre",
-                "Aggiornare il canonical tag di ogni pagina verso l'hostname scelto",
-                "Aggiornare tutti i link interni per usare l'hostname canonico",
-                "Verificare la proprietà canonica in Google Search Console e richiedere la reindicizzazione",
-            ],
-        })
+        examples_rows = [
+            {"host": h, "clicks": c} for h, c in sorted(mixed_pages.items(), key=lambda x: -x[1])
+        ]
+        issues.append(
+            {
+                "severity": "medium",
+                "category": "Tecnico",
+                "title": "Host multipli indicizzati (www e non-www)",
+                "description": f"Rilevati {len(hostnames)} hostname diversi che generano traffico: {', '.join(sorted(hostnames))}. Senza una versione canonica unica, i backlink e i segnali di autorità vengono distribuiti.",
+                "examples": {"type": "hosts", "rows": examples_rows},
+                "strategy": [
+                    "Scegliere una versione canonica (raccomandato: con www) e impostare redirect 301 da tutte le altre",
+                    "Aggiornare il canonical tag di ogni pagina verso l'hostname scelto",
+                    "Aggiornare tutti i link interni per usare l'hostname canonico",
+                    "Verificare la proprietà canonica in Google Search Console e richiedere la reindicizzazione",
+                ],
+            }
+        )
 
     # --- Low CTR on high-volume queries --------------------------------------
     low_ctr = [
-        q for q in data["top_queries"]
+        q
+        for q in data["top_queries"]
         if q.get("impressions", 0) >= 2000 and q.get("ctr", 0) < 0.02 and q.get("position", 100) <= 10
     ]
     if low_ctr:
         examples = [
-            {"query": q["keys"][0], "impressions": int(q.get("impressions", 0)), "ctr": f"{q.get('ctr', 0) * 100:.2f}%", "position": f"{q.get('position', 0):.1f}"}
+            {
+                "query": q["keys"][0],
+                "impressions": int(q.get("impressions", 0)),
+                "ctr": f"{q.get('ctr', 0) * 100:.2f}%",
+                "position": f"{q.get('position', 0):.1f}",
+            }
             for q in sorted(low_ctr, key=lambda x: x.get("impressions", 0), reverse=True)[:10]
         ]
-        issues.append({
-            "severity": "medium",
-            "category": "Contenuti",
-            "title": f"{len(low_ctr)} query con CTR <2% in top 10",
-            "description": "Query posizionate in prima pagina ma con click-through rate molto basso: il posizionamento c'è ma lo snippet non convince l'utente. Ottima opportunità a basso sforzo.",
-            "examples": {"type": "queries", "rows": examples},
-            "strategy": [
-                "Riscrivere title tag inserendo USP differenzianti (prezzo, spedizione gratuita, made in Italy, non-iron)",
-                "Aggiornare meta description con call-to-action chiare e limite 155 caratteri",
-                "Implementare schema markup Product/Review/Offer per ottenere rich snippet (stelle, prezzo)",
-                "Testare varianti di title con date/anno per creare percezione di freschezza",
-                "Evitare title generici tipo \"Categoria | Brand\" e preferire formulazioni orientate al beneficio",
-                "Monitorare CTR settimanale dopo ogni modifica e iterare",
-            ],
-        })
+        issues.append(
+            {
+                "severity": "medium",
+                "category": "Contenuti",
+                "title": f"{len(low_ctr)} query con CTR <2% in top 10",
+                "description": "Query posizionate in prima pagina ma con click-through rate molto basso: il posizionamento c'è ma lo snippet non convince l'utente. Ottima opportunità a basso sforzo.",
+                "examples": {"type": "queries", "rows": examples},
+                "strategy": [
+                    "Riscrivere title tag inserendo USP differenzianti (prezzo, spedizione gratuita, made in Italy, non-iron)",
+                    "Aggiornare meta description con call-to-action chiare e limite 155 caratteri",
+                    "Implementare schema markup Product/Review/Offer per ottenere rich snippet (stelle, prezzo)",
+                    "Testare varianti di title con date/anno per creare percezione di freschezza",
+                    'Evitare title generici tipo "Categoria | Brand" e preferire formulazioni orientate al beneficio',
+                    "Monitorare CTR settimanale dopo ogni modifica e iterare",
+                ],
+            }
+        )
 
     # --- Page 2 opportunities ------------------------------------------------
-    page_two = [q for q in data["top_queries"] if 10 < q.get("position", 0) <= 20 and q.get("impressions", 0) >= 500]
+    page_two = [
+        q for q in data["top_queries"] if 10 < q.get("position", 0) <= 20 and q.get("impressions", 0) >= 500
+    ]
     if page_two:
         examples = [
-            {"query": q["keys"][0], "impressions": int(q.get("impressions", 0)), "ctr": f"{q.get('ctr', 0) * 100:.2f}%", "position": f"{q.get('position', 0):.1f}"}
+            {
+                "query": q["keys"][0],
+                "impressions": int(q.get("impressions", 0)),
+                "ctr": f"{q.get('ctr', 0) * 100:.2f}%",
+                "position": f"{q.get('position', 0):.1f}",
+            }
             for q in sorted(page_two, key=lambda x: x.get("impressions", 0), reverse=True)[:10]
         ]
-        issues.append({
-            "severity": "low",
-            "category": "Opportunità",
-            "title": f"{len(page_two)} query in posizione 11-20 con volume",
-            "description": "Query in seconda pagina di Google che, con una spinta mirata, possono entrare in top 10 e aumentare significativamente il traffico.",
-            "examples": {"type": "queries", "rows": examples},
-            "strategy": [
-                "Identificare la pagina che Google posiziona per ognuna di queste query",
-                "Arricchire il contenuto della pagina con informazioni mancanti (FAQ, specifiche, comparazioni)",
-                "Aggiungere link interni dalle pagine ad alta autorità verso queste pagine target",
-                "Analizzare i top 10 risultati attuali per capire cosa li rende migliori e colmare il gap",
-                "Verificare che le keyword siano presenti in H1, H2, URL e nei primi 100 parole",
-                "Considerare backlink da publisher di settore se la competizione è alta",
-            ],
-        })
+        issues.append(
+            {
+                "severity": "low",
+                "category": "Opportunità",
+                "title": f"{len(page_two)} query in posizione 11-20 con volume",
+                "description": "Query in seconda pagina di Google che, con una spinta mirata, possono entrare in top 10 e aumentare significativamente il traffico.",
+                "examples": {"type": "queries", "rows": examples},
+                "strategy": [
+                    "Identificare la pagina che Google posiziona per ognuna di queste query",
+                    "Arricchire il contenuto della pagina con informazioni mancanti (FAQ, specifiche, comparazioni)",
+                    "Aggiungere link interni dalle pagine ad alta autorità verso queste pagine target",
+                    "Analizzare i top 10 risultati attuali per capire cosa li rende migliori e colmare il gap",
+                    "Verificare che le keyword siano presenti in H1, H2, URL e nei primi 100 parole",
+                    "Considerare backlink da publisher di settore se la competizione è alta",
+                ],
+            }
+        )
 
     # --- Weak high-visibility pages ------------------------------------------
     weak_pages = [p for p in data["top_pages"] if p.get("impressions", 0) >= 5000 and p.get("ctr", 0) < 0.015]
     if weak_pages:
         examples = [
-            {"url": p["keys"][0], "clicks": int(p.get("clicks", 0)), "impressions": int(p.get("impressions", 0)), "position": f"{p.get('position', 0):.1f}"}
+            {
+                "url": p["keys"][0],
+                "clicks": int(p.get("clicks", 0)),
+                "impressions": int(p.get("impressions", 0)),
+                "position": f"{p.get('position', 0):.1f}",
+            }
             for p in sorted(weak_pages, key=lambda x: x.get("impressions", 0), reverse=True)[:10]
         ]
-        issues.append({
-            "severity": "medium",
-            "category": "Contenuti",
-            "title": f"{len(weak_pages)} pagine ad alta visibilità con CTR <1.5%",
-            "description": "Pagine con tante impression ma pochissimi click. Indicano una discrepanza tra snippet mostrato e intento dell'utente, oppure una posizione troppo bassa.",
-            "examples": {"type": "pages", "rows": examples},
-            "strategy": [
-                "Fare una revisione di title e meta description pagina per pagina",
-                "Verificare che il contenuto above-the-fold risponda all'intento di ricerca",
-                "Controllare Core Web Vitals: un LCP alto può penalizzare i click mobile",
-                "Valutare se la pagina è in cannibalizzazione con altre pagine del sito",
-                "Implementare dati strutturati specifici per il tipo di pagina (Product, Article, FAQ)",
-            ],
-        })
+        issues.append(
+            {
+                "severity": "medium",
+                "category": "Contenuti",
+                "title": f"{len(weak_pages)} pagine ad alta visibilità con CTR <1.5%",
+                "description": "Pagine con tante impression ma pochissimi click. Indicano una discrepanza tra snippet mostrato e intento dell'utente, oppure una posizione troppo bassa.",
+                "examples": {"type": "pages", "rows": examples},
+                "strategy": [
+                    "Fare una revisione di title e meta description pagina per pagina",
+                    "Verificare che il contenuto above-the-fold risponda all'intento di ricerca",
+                    "Controllare Core Web Vitals: un LCP alto può penalizzare i click mobile",
+                    "Valutare se la pagina è in cannibalizzazione con altre pagine del sito",
+                    "Implementare dati strutturati specifici per il tipo di pagina (Product, Article, FAQ)",
+                ],
+            }
+        )
 
     # --- Sitemap warnings ----------------------------------------------------
-    warn_sitemaps = [s for s in data["sitemaps"] if int(s.get("warnings", 0)) > 0 or int(s.get("errors", 0)) > 0]
+    warn_sitemaps = [
+        s for s in data["sitemaps"] if int(s.get("warnings", 0)) > 0 or int(s.get("errors", 0)) > 0
+    ]
     if warn_sitemaps:
         total_warnings = sum(int(s.get("warnings", 0)) for s in warn_sitemaps)
         total_errors = sum(int(s.get("errors", 0)) for s in warn_sitemaps)
         examples_rows = [
-            {"path": s.get("path", ""), "warnings": int(s.get("warnings", 0)), "errors": int(s.get("errors", 0)), "lastDownloaded": s.get("lastDownloaded", "")[:10]}
+            {
+                "path": s.get("path", ""),
+                "warnings": int(s.get("warnings", 0)),
+                "errors": int(s.get("errors", 0)),
+                "lastDownloaded": s.get("lastDownloaded", "")[:10],
+            }
             for s in warn_sitemaps
         ]
-        issues.append({
-            "severity": "medium" if total_errors == 0 else "high",
-            "category": "Tecnico",
-            "title": f"Sitemap con {total_warnings} warning e {total_errors} errori",
-            "description": "Le sitemap segnalate da Search Console presentano problemi: URL irraggiungibili, redirect dentro la sitemap, pagine noindex, URL non canonici.",
-            "examples": {"type": "sitemaps", "rows": examples_rows},
-            "strategy": [
-                "Aprire Search Console → Sitemap → cliccare su ogni sitemap per leggere il dettaglio dei warning",
-                "Rimuovere dalla sitemap gli URL che restituiscono redirect, 404 o noindex",
-                "Verificare che tutti gli URL in sitemap siano HTTPS, canonici e senza parametri",
-                "Assicurarsi che la sitemap non superi 50MB o 50.000 URL (altrimenti usare sitemap index)",
-                "Risottomettere la sitemap pulita in Search Console",
-                "Automatizzare la generazione della sitemap dal CMS se possibile",
-            ],
-        })
+        issues.append(
+            {
+                "severity": "medium" if total_errors == 0 else "high",
+                "category": "Tecnico",
+                "title": f"Sitemap con {total_warnings} warning e {total_errors} errori",
+                "description": "Le sitemap segnalate da Search Console presentano problemi: URL irraggiungibili, redirect dentro la sitemap, pagine noindex, URL non canonici.",
+                "examples": {"type": "sitemaps", "rows": examples_rows},
+                "strategy": [
+                    "Aprire Search Console → Sitemap → cliccare su ogni sitemap per leggere il dettaglio dei warning",
+                    "Rimuovere dalla sitemap gli URL che restituiscono redirect, 404 o noindex",
+                    "Verificare che tutti gli URL in sitemap siano HTTPS, canonici e senza parametri",
+                    "Assicurarsi che la sitemap non superi 50MB o 50.000 URL (altrimenti usare sitemap index)",
+                    "Risottomettere la sitemap pulita in Search Console",
+                    "Automatizzare la generazione della sitemap dal CMS se possibile",
+                ],
+            }
+        )
 
     # --- Indexing issues on top pages ----------------------------------------
     bad_index = [i for i in data["indexing"] if i["verdict"] not in ("PASS", "UNKNOWN")]
     if bad_index:
-        examples_rows = [{"url": i["url"], "verdict": i["verdict"], "coverageState": i["coverageState"]} for i in bad_index]
-        issues.append({
-            "severity": "high",
-            "category": "Indicizzazione",
-            "title": f"{len(bad_index)} pagine top con problemi di indicizzazione",
-            "description": "Pagine tra le più importanti del sito che Google non considera in stato PASS. Ogni pagina qui rappresenta traffico a rischio.",
-            "examples": {"type": "indexing", "rows": examples_rows},
-            "strategy": [
-                "Per ogni pagina, aprire Search Console → URL Inspection per leggere il dettaglio",
-                "Se coverage è \"Duplicate, Google chose different canonical\": verificare il canonical dichiarato e il contenuto unico",
-                "Se è \"Crawled - currently not indexed\": migliorare qualità e unicità del contenuto",
-                "Se è \"Discovered - currently not indexed\": problema di crawl budget, ridurre il numero di URL di bassa qualità",
-                "Dopo ogni fix richiedere l'indicizzazione tramite il bottone \"Request indexing\"",
-                "Monitorare lo stato settimanalmente nelle prime 2-3 settimane",
-            ],
-        })
+        examples_rows = [
+            {"url": i["url"], "verdict": i["verdict"], "coverageState": i["coverageState"]} for i in bad_index
+        ]
+        issues.append(
+            {
+                "severity": "high",
+                "category": "Indicizzazione",
+                "title": f"{len(bad_index)} pagine top con problemi di indicizzazione",
+                "description": "Pagine tra le più importanti del sito che Google non considera in stato PASS. Ogni pagina qui rappresenta traffico a rischio.",
+                "examples": {"type": "indexing", "rows": examples_rows},
+                "strategy": [
+                    "Per ogni pagina, aprire Search Console → URL Inspection per leggere il dettaglio",
+                    'Se coverage è "Duplicate, Google chose different canonical": verificare il canonical dichiarato e il contenuto unico',
+                    'Se è "Crawled - currently not indexed": migliorare qualità e unicità del contenuto',
+                    'Se è "Discovered - currently not indexed": problema di crawl budget, ridurre il numero di URL di bassa qualità',
+                    'Dopo ogni fix richiedere l\'indicizzazione tramite il bottone "Request indexing"',
+                    "Monitorare lo stato settimanalmente nelle prime 2-3 settimane",
+                ],
+            }
+        )
 
     # --- Traffic trend -------------------------------------------------------
     cur_clicks = data["current"]["clicks"]
@@ -435,24 +534,39 @@ def detect_issues(data: dict) -> list[dict]:
         delta_pct = (cur_clicks - prev_clicks) / prev_clicks * 100
         if delta_pct < -10:
             imp_delta = ((cur_imp - prev_imp) / prev_imp * 100) if prev_imp > 0 else 0
-            issues.append({
-                "severity": "high",
-                "category": "Performance",
-                "title": f"Calo click {delta_pct:.1f}% vs periodo precedente",
-                "description": f"Click passati da {int(prev_clicks):,} a {int(cur_clicks):,}. Impression variate del {imp_delta:+.1f}%. Necessaria indagine immediata sulle cause.",
-                "examples": {"type": "metric", "rows": [
-                    {"metric": "Click", "prev": f"{int(prev_clicks):,}", "curr": f"{int(cur_clicks):,}", "delta": f"{delta_pct:+.1f}%"},
-                    {"metric": "Impression", "prev": f"{int(prev_imp):,}", "curr": f"{int(cur_imp):,}", "delta": f"{imp_delta:+.1f}%"},
-                ]},
-                "strategy": [
-                    "Confrontare top 20 query e pagine nei due periodi per isolare dove è avvenuto il calo",
-                    "Verificare eventuali Google Core Update nelle date del calo",
-                    "Controllare modifiche recenti al sito: deploy, redirect, rimozione pagine, cambio template",
-                    "Analizzare il log del server per individuare errori 5xx o blocchi del crawler",
-                    "Verificare manual action e problemi di sicurezza in Search Console",
-                    "Se il calo è su keyword specifiche, analizzare cosa stanno facendo i competitor che ti hanno superato",
-                ],
-            })
+            issues.append(
+                {
+                    "severity": "high",
+                    "category": "Performance",
+                    "title": f"Calo click {delta_pct:.1f}% vs periodo precedente",
+                    "description": f"Click passati da {int(prev_clicks):,} a {int(cur_clicks):,}. Impression variate del {imp_delta:+.1f}%. Necessaria indagine immediata sulle cause.",
+                    "examples": {
+                        "type": "metric",
+                        "rows": [
+                            {
+                                "metric": "Click",
+                                "prev": f"{int(prev_clicks):,}",
+                                "curr": f"{int(cur_clicks):,}",
+                                "delta": f"{delta_pct:+.1f}%",
+                            },
+                            {
+                                "metric": "Impression",
+                                "prev": f"{int(prev_imp):,}",
+                                "curr": f"{int(cur_imp):,}",
+                                "delta": f"{imp_delta:+.1f}%",
+                            },
+                        ],
+                    },
+                    "strategy": [
+                        "Confrontare top 20 query e pagine nei due periodi per isolare dove è avvenuto il calo",
+                        "Verificare eventuali Google Core Update nelle date del calo",
+                        "Controllare modifiche recenti al sito: deploy, redirect, rimozione pagine, cambio template",
+                        "Analizzare il log del server per individuare errori 5xx o blocchi del crawler",
+                        "Verificare manual action e problemi di sicurezza in Search Console",
+                        "Se il calo è su keyword specifiche, analizzare cosa stanno facendo i competitor che ti hanno superato",
+                    ],
+                }
+            )
 
     severity_order = {"high": 0, "medium": 1, "low": 2}
     issues.sort(key=lambda x: severity_order.get(x["severity"], 9))
@@ -464,18 +578,88 @@ def detect_issues(data: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 STOPWORDS_IT = {
-    "il", "la", "di", "e", "a", "in", "da", "per", "con", "su", "un", "una", "uno",
-    "i", "gli", "le", "del", "della", "delle", "degli", "dei", "dello", "lo", "al",
-    "alla", "alle", "agli", "ai", "allo", "nel", "nella", "nelle", "negli", "nei",
-    "nello", "dal", "dalla", "dalle", "dagli", "dai", "dallo", "sul", "sulla",
-    "sulle", "sugli", "sui", "sullo", "che", "chi", "cui", "come", "cosa", "dove",
-    "quando", "quale", "quali", "quanto", "quanti", "se", "ma", "o", "ed", "ad",
-    "non", "più", "meno", "molto", "poco", "anche",
+    "il",
+    "la",
+    "di",
+    "e",
+    "a",
+    "in",
+    "da",
+    "per",
+    "con",
+    "su",
+    "un",
+    "una",
+    "uno",
+    "i",
+    "gli",
+    "le",
+    "del",
+    "della",
+    "delle",
+    "degli",
+    "dei",
+    "dello",
+    "lo",
+    "al",
+    "alla",
+    "alle",
+    "agli",
+    "ai",
+    "allo",
+    "nel",
+    "nella",
+    "nelle",
+    "negli",
+    "nei",
+    "nello",
+    "dal",
+    "dalla",
+    "dalle",
+    "dagli",
+    "dai",
+    "dallo",
+    "sul",
+    "sulla",
+    "sulle",
+    "sugli",
+    "sui",
+    "sullo",
+    "che",
+    "chi",
+    "cui",
+    "come",
+    "cosa",
+    "dove",
+    "quando",
+    "quale",
+    "quali",
+    "quanto",
+    "quanti",
+    "se",
+    "ma",
+    "o",
+    "ed",
+    "ad",
+    "non",
+    "più",
+    "meno",
+    "molto",
+    "poco",
+    "anche",
 }
 
 CTR_BY_POSITION = {
-    1: 0.275, 2: 0.155, 3: 0.100, 4: 0.075, 5: 0.060,
-    6: 0.048, 7: 0.038, 8: 0.031, 9: 0.026, 10: 0.022,
+    1: 0.275,
+    2: 0.155,
+    3: 0.100,
+    4: 0.075,
+    5: 0.060,
+    6: 0.048,
+    7: 0.038,
+    8: 0.031,
+    9: 0.026,
+    10: 0.022,
 }
 
 
@@ -520,15 +704,17 @@ def build_strategy(data: dict, issues: list[dict]) -> dict:
             cur_clicks = q.get("clicks", 0)
             est_clicks = int(imp * _expected_ctr(5))
             uplift = max(0, est_clicks - cur_clicks)
-            page_two_wins.append({
-                "query": q["keys"][0],
-                "impressions": int(imp),
-                "ctr": f"{q.get('ctr', 0) * 100:.2f}%",
-                "position": f"{pos:.1f}",
-                "current_clicks": int(cur_clicks),
-                "potential_clicks": est_clicks,
-                "uplift": uplift,
-            })
+            page_two_wins.append(
+                {
+                    "query": q["keys"][0],
+                    "impressions": int(imp),
+                    "ctr": f"{q.get('ctr', 0) * 100:.2f}%",
+                    "position": f"{pos:.1f}",
+                    "current_clicks": int(cur_clicks),
+                    "potential_clicks": est_clicks,
+                    "uplift": uplift,
+                }
+            )
     page_two_wins.sort(key=lambda x: x["uplift"], reverse=True)
     page_two_wins = page_two_wins[:15]
 
@@ -544,16 +730,18 @@ def build_strategy(data: dict, issues: list[dict]) -> dict:
                 cur_clicks = p.get("clicks", 0)
                 potential = int(imp * expected)
                 uplift = max(0, potential - cur_clicks)
-                high_potential.append({
-                    "url": p["keys"][0],
-                    "impressions": int(imp),
-                    "ctr": f"{ctr * 100:.2f}%",
-                    "expected_ctr": f"{expected * 100:.1f}%",
-                    "position": f"{pos:.1f}",
-                    "current_clicks": int(cur_clicks),
-                    "potential_clicks": potential,
-                    "uplift": uplift,
-                })
+                high_potential.append(
+                    {
+                        "url": p["keys"][0],
+                        "impressions": int(imp),
+                        "ctr": f"{ctr * 100:.2f}%",
+                        "expected_ctr": f"{expected * 100:.1f}%",
+                        "position": f"{pos:.1f}",
+                        "current_clicks": int(cur_clicks),
+                        "potential_clicks": potential,
+                        "uplift": uplift,
+                    }
+                )
     high_potential.sort(key=lambda x: x["uplift"], reverse=True)
     high_potential = high_potential[:10]
 
@@ -585,12 +773,14 @@ def build_strategy(data: dict, issues: list[dict]) -> dict:
     for row in data["query_page"]:
         query = row["keys"][0]
         page = row["keys"][1]
-        query_to_pages[query].append({
-            "page": page,
-            "clicks": row.get("clicks", 0),
-            "impressions": row.get("impressions", 0),
-            "position": row.get("position", 0),
-        })
+        query_to_pages[query].append(
+            {
+                "page": page,
+                "clicks": row.get("clicks", 0),
+                "impressions": row.get("impressions", 0),
+                "position": row.get("position", 0),
+            }
+        )
     cannibalization = []
     for query, pages in query_to_pages.items():
         if len(pages) < 2:
@@ -599,12 +789,14 @@ def build_strategy(data: dict, issues: list[dict]) -> dict:
         if total < 10:
             continue
         pages.sort(key=lambda x: x["clicks"], reverse=True)
-        cannibalization.append({
-            "query": query,
-            "pages": pages[:4],
-            "total_clicks": int(total),
-            "page_count": len(pages),
-        })
+        cannibalization.append(
+            {
+                "query": query,
+                "pages": pages[:4],
+                "total_clicks": int(total),
+                "page_count": len(pages),
+            }
+        )
     cannibalization.sort(key=lambda x: x["total_clicks"], reverse=True)
     cannibalization = cannibalization[:10]
 
@@ -615,12 +807,14 @@ def build_strategy(data: dict, issues: list[dict]) -> dict:
         text = q["keys"][0].lower()
         first_word = text.split(" ")[0] if text else ""
         if first_word in question_words and q.get("position", 100) <= 15:
-            questions.append({
-                "query": q["keys"][0],
-                "impressions": int(q.get("impressions", 0)),
-                "ctr": f"{q.get('ctr', 0) * 100:.2f}%",
-                "position": f"{q.get('position', 0):.1f}",
-            })
+            questions.append(
+                {
+                    "query": q["keys"][0],
+                    "impressions": int(q.get("impressions", 0)),
+                    "ctr": f"{q.get('ctr', 0) * 100:.2f}%",
+                    "position": f"{q.get('position', 0):.1f}",
+                }
+            )
     questions.sort(key=lambda x: x["impressions"], reverse=True)
     questions = questions[:10]
 
@@ -632,13 +826,15 @@ def build_strategy(data: dict, issues: list[dict]) -> dict:
             imp = c.get("impressions", 0)
             ctr = c.get("ctr", 0)
             if imp >= 500 and ctr > primary_ctr * 0.8:
-                geo_opportunities.append({
-                    "country": c["keys"][0].upper(),
-                    "clicks": int(c.get("clicks", 0)),
-                    "impressions": int(imp),
-                    "ctr": f"{ctr * 100:.2f}%",
-                    "position": f"{c.get('position', 0):.1f}",
-                })
+                geo_opportunities.append(
+                    {
+                        "country": c["keys"][0].upper(),
+                        "clicks": int(c.get("clicks", 0)),
+                        "impressions": int(imp),
+                        "ctr": f"{ctr * 100:.2f}%",
+                        "position": f"{c.get('position', 0):.1f}",
+                    }
+                )
 
     # Device gap
     device_insights = None
@@ -662,64 +858,80 @@ def build_strategy(data: dict, issues: list[dict]) -> dict:
     quick_wins = []
     if high_potential:
         top = high_potential[0]
-        quick_wins.append({
-            "title": "Riscrivere title e meta description sulle pagine ad alta visibilità",
-            "impact": "Alto",
-            "effort": "Basso",
-            "action": f"Iniziare da {top['url']} ({top['impressions']:,} impression, CTR {top['ctr']} vs atteso {top['expected_ctr']}). Potenziale uplift: +{top['uplift']:,} click.",
-        })
+        quick_wins.append(
+            {
+                "title": "Riscrivere title e meta description sulle pagine ad alta visibilità",
+                "impact": "Alto",
+                "effort": "Basso",
+                "action": f"Iniziare da {top['url']} ({top['impressions']:,} impression, CTR {top['ctr']} vs atteso {top['expected_ctr']}). Potenziale uplift: +{top['uplift']:,} click.",
+            }
+        )
     if page_two_wins:
         top_pt = page_two_wins[0]
-        quick_wins.append({
-            "title": "Spingere le query in posizione 11-20 verso la top 10",
-            "impact": "Alto",
-            "effort": "Medio",
-            "action": f"Focus sulla query '{top_pt['query']}' ({top_pt['impressions']:,} imp, pos {top_pt['position']}). Arricchire la pagina target con contenuti mancanti, link interni e schema markup.",
-        })
+        quick_wins.append(
+            {
+                "title": "Spingere le query in posizione 11-20 verso la top 10",
+                "impact": "Alto",
+                "effort": "Medio",
+                "action": f"Focus sulla query '{top_pt['query']}' ({top_pt['impressions']:,} imp, pos {top_pt['position']}). Arricchire la pagina target con contenuti mancanti, link interni e schema markup.",
+            }
+        )
     if cannibalization:
         top_cann = cannibalization[0]
-        quick_wins.append({
-            "title": "Risolvere la cannibalizzazione tra pagine",
-            "impact": "Medio",
-            "effort": "Medio",
-            "action": f"La query '{top_cann['query']}' è divisa su {top_cann['page_count']} pagine. Consolidare canonical, rafforzare una sola pagina target per query.",
-        })
+        quick_wins.append(
+            {
+                "title": "Risolvere la cannibalizzazione tra pagine",
+                "impact": "Medio",
+                "effort": "Medio",
+                "action": f"La query '{top_cann['query']}' è divisa su {top_cann['page_count']} pagine. Consolidare canonical, rafforzare una sola pagina target per query.",
+            }
+        )
     if any(i.get("severity") == "high" and "HTTP" in i.get("title", "") for i in issues):
-        quick_wins.append({
-            "title": "Forzare HTTPS ovunque con redirect 301",
-            "impact": "Alto",
-            "effort": "Basso",
-            "action": "Configurare redirect 301 da HTTP a HTTPS a livello server, verificare HSTS, aggiornare sitemap e risottomettere.",
-        })
+        quick_wins.append(
+            {
+                "title": "Forzare HTTPS ovunque con redirect 301",
+                "impact": "Alto",
+                "effort": "Basso",
+                "action": "Configurare redirect 301 da HTTP a HTTPS a livello server, verificare HSTS, aggiornare sitemap e risottomettere.",
+            }
+        )
     if any("paginate" in i.get("title", "") for i in issues):
-        quick_wins.append({
-            "title": "Canonicalizzare pagine paginate",
-            "impact": "Medio",
-            "effort": "Basso",
-            "action": "Aggiungere rel=canonical dalle pagine ?p=N verso la pagina 1 della categoria per consolidare l'autorità.",
-        })
+        quick_wins.append(
+            {
+                "title": "Canonicalizzare pagine paginate",
+                "impact": "Medio",
+                "effort": "Basso",
+                "action": "Aggiungere rel=canonical dalle pagine ?p=N verso la pagina 1 della categoria per consolidare l'autorità.",
+            }
+        )
     if questions:
-        quick_wins.append({
-            "title": "Ottimizzare per featured snippet e People Also Ask",
-            "impact": "Medio",
-            "effort": "Medio",
-            "action": f"Rilevate {len(questions)} query interrogative in top 15. Aggiungere sezioni FAQ strutturate con risposte brevi (40-60 parole) e schema FAQPage.",
-        })
+        quick_wins.append(
+            {
+                "title": "Ottimizzare per featured snippet e People Also Ask",
+                "impact": "Medio",
+                "effort": "Medio",
+                "action": f"Rilevate {len(questions)} query interrogative in top 15. Aggiungere sezioni FAQ strutturate con risposte brevi (40-60 parole) e schema FAQPage.",
+            }
+        )
     if brand_pct > 50:
-        quick_wins.append({
-            "title": "Ridurre la dipendenza dal traffico brand",
-            "impact": "Alto",
-            "effort": "Alto",
-            "action": f"Il {brand_pct:.0f}% del traffico arriva da query brand. Investire in contenuti informativi top-of-funnel per allargare il bacino di utenti non-brand.",
-        })
+        quick_wins.append(
+            {
+                "title": "Ridurre la dipendenza dal traffico brand",
+                "impact": "Alto",
+                "effort": "Alto",
+                "action": f"Il {brand_pct:.0f}% del traffico arriva da query brand. Investire in contenuti informativi top-of-funnel per allargare il bacino di utenti non-brand.",
+            }
+        )
     if top_themes:
         top_theme = top_themes[0]
-        quick_wins.append({
-            "title": f"Creare contenuti hub sul tema '{top_theme['theme']}'",
-            "impact": "Medio",
-            "effort": "Alto",
-            "action": f"Il tema '{top_theme['theme']}' concentra {top_theme['clicks']:,} click su {top_theme['query_count']} query. Creare una pagina pillar e cluster di contenuti di supporto.",
-        })
+        quick_wins.append(
+            {
+                "title": f"Creare contenuti hub sul tema '{top_theme['theme']}'",
+                "impact": "Medio",
+                "effort": "Alto",
+                "action": f"Il tema '{top_theme['theme']}' concentra {top_theme['clicks']:,} click su {top_theme['query_count']} query. Creare una pagina pillar e cluster di contenuti di supporto.",
+            }
+        )
 
     # Executive summary
     cur_clicks = data["current"]["clicks"]
@@ -748,18 +960,26 @@ def build_strategy(data: dict, issues: list[dict]) -> dict:
         if qw.get("effort") == "Basso":
             roadmap["30"].append(qw["title"])
     if not roadmap["30"]:
-        roadmap["30"].append("Nessun intervento critico urgente: procedere con ottimizzazioni di medio termine")
+        roadmap["30"].append(
+            "Nessun intervento critico urgente: procedere con ottimizzazioni di medio termine"
+        )
 
     for qw in quick_wins:
         if qw.get("effort") == "Medio":
             roadmap["60"].append(qw["title"])
     if page_two_wins:
-        roadmap["60"].append(f"Ottimizzare {min(10, len(page_two_wins))} pagine target per le query in posizione 11-20")
+        roadmap["60"].append(
+            f"Ottimizzare {min(10, len(page_two_wins))} pagine target per le query in posizione 11-20"
+        )
     if cannibalization:
-        roadmap["60"].append(f"Risolvere cannibalizzazione su {min(5, len(cannibalization))} query principali")
+        roadmap["60"].append(
+            f"Risolvere cannibalizzazione su {min(5, len(cannibalization))} query principali"
+        )
 
     if top_themes:
-        roadmap["90"].append(f"Creare hub di contenuti sui temi principali: {', '.join(t['theme'] for t in top_themes[:3])}")
+        roadmap["90"].append(
+            f"Creare hub di contenuti sui temi principali: {', '.join(t['theme'] for t in top_themes[:3])}"
+        )
     if brand_pct > 40:
         roadmap["90"].append("Espandere il funnel con contenuti informativi per acquisire traffico non-brand")
     if geo_opportunities:
@@ -786,6 +1006,7 @@ def build_strategy(data: dict, issues: list[dict]) -> dict:
 # Rendering (Jinja2)
 # ---------------------------------------------------------------------------
 
+
 def _shorten_url(url: str, max_len: int = 60) -> str:
     s = url.replace("https://", "").replace("http://", "")
     return s if len(s) <= max_len else s[: max_len - 3] + "..."
@@ -807,10 +1028,22 @@ def _build_kpis(data: dict) -> list[dict]:
     cur = data["current"]
     prev = data["previous"]
     return [
-        {"label": "Click", "value": f"{int(cur['clicks']):,}", "delta": _delta_html(cur["clicks"], prev["clicks"])},
-        {"label": "Impression", "value": f"{int(cur['impressions']):,}", "delta": _delta_html(cur["impressions"], prev["impressions"])},
+        {
+            "label": "Click",
+            "value": f"{int(cur['clicks']):,}",
+            "delta": _delta_html(cur["clicks"], prev["clicks"]),
+        },
+        {
+            "label": "Impression",
+            "value": f"{int(cur['impressions']):,}",
+            "delta": _delta_html(cur["impressions"], prev["impressions"]),
+        },
         {"label": "CTR", "value": f"{cur['ctr'] * 100:.2f}%", "delta": _delta_html(cur["ctr"], prev["ctr"])},
-        {"label": "Posizione media", "value": f"{cur['position']:.1f}", "delta": _delta_html(cur["position"], prev["position"], inverse=True)},
+        {
+            "label": "Posizione media",
+            "value": f"{cur['position']:.1f}",
+            "delta": _delta_html(cur["position"], prev["position"], inverse=True),
+        },
     ]
 
 
@@ -910,6 +1143,7 @@ def render_html(data: dict, issues: list[dict], strategy: dict, branding: dict) 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def generate_audit(
     api_get,

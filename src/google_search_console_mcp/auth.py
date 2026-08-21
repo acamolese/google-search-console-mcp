@@ -15,7 +15,7 @@ import json
 import urllib.parse
 import urllib.request
 import webbrowser
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from . import config
 
@@ -33,18 +33,15 @@ def run_oauth_flow() -> None:
     client_id = oauth["client_id"]
     client_secret = oauth["client_secret"]
 
-    auth_url = (
-        "https://accounts.google.com/o/oauth2/auth?"
-        + urllib.parse.urlencode(
-            {
-                "client_id": client_id,
-                "redirect_uri": REDIRECT_URI,
-                "response_type": "code",
-                "scope": " ".join(SCOPES),
-                "access_type": "offline",
-                "prompt": "consent",
-            }
-        )
+    auth_url = "https://accounts.google.com/o/oauth2/auth?" + urllib.parse.urlencode(
+        {
+            "client_id": client_id,
+            "redirect_uri": REDIRECT_URI,
+            "response_type": "code",
+            "scope": " ".join(SCOPES),
+            "access_type": "offline",
+            "prompt": "consent",
+        }
     )
 
     authorization_code: str | None = None
@@ -58,9 +55,7 @@ def run_oauth_flow() -> None:
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(
-                b"<h1>Authorization complete</h1><p>You can close this window.</p>"
-            )
+            self.wfile.write(b"<h1>Authorization complete</h1><p>You can close this window.</p>")
 
         def log_message(self, format, *args):  # noqa: A002
             pass
@@ -91,13 +86,12 @@ def run_oauth_flow() -> None:
         data=token_data,
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req) as resp:  # noqa: S310 - Google token endpoint only
         token_response = json.loads(resp.read())
 
     expires_in = int(token_response.get("expires_in", 3599))
-    token_response["expiry"] = (
-        datetime.utcnow() + timedelta(seconds=expires_in - 60)
-    ).isoformat()
+    expiry = config.now_utc() + timedelta(seconds=expires_in - 60)
+    token_response["expiry"] = config.serialize_expiry(expiry)
 
     config.save_token(token_response)
 

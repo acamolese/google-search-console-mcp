@@ -17,9 +17,8 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-
 
 APP_NAME = "mcp-google-search-console"
 LEGACY_APP_NAMES = ("google-search-console-mcp",)
@@ -28,6 +27,7 @@ LEGACY_APP_NAMES = ("google-search-console-mcp",)
 # ---------------------------------------------------------------------------
 # Directories
 # ---------------------------------------------------------------------------
+
 
 def xdg_config_home() -> Path:
     env = os.environ.get("XDG_CONFIG_HOME")
@@ -65,6 +65,7 @@ def _credential_search_paths(filename: str) -> list[Path]:
 # ---------------------------------------------------------------------------
 # OAuth client (client_id + client_secret)
 # ---------------------------------------------------------------------------
+
 
 def _oauth_from_env() -> dict | None:
     cid = os.environ.get("GSC_CLIENT_ID")
@@ -112,6 +113,7 @@ def load_oauth_client() -> dict:
 # ---------------------------------------------------------------------------
 # Token (access_token + refresh_token + expiry)
 # ---------------------------------------------------------------------------
+
 
 def _token_from_env() -> dict | None:
     refresh = os.environ.get("GSC_REFRESH_TOKEN")
@@ -179,5 +181,47 @@ def update_saved_token(access_token: str, expiry: datetime | None) -> None:
         return
     token["access_token"] = access_token
     if expiry:
-        token["expiry"] = expiry.isoformat()
+        token["expiry"] = serialize_expiry(expiry)
     save_token(token)
+
+
+# ---------------------------------------------------------------------------
+# Expiry handling
+# ---------------------------------------------------------------------------
+
+# `google-auth` compares `Credentials.expiry` against a naive UTC "now", so every
+# expiry handed to it must be naive UTC. On disk we write offset-aware ISO strings;
+# tokens written by 2.0.x are naive and are read as UTC.
+EPOCH_NAIVE_UTC = datetime(1970, 1, 1)  # noqa: DTZ001 - google-auth wants naive UTC
+
+
+def now_utc() -> datetime:
+    """Current time as an offset-aware UTC datetime."""
+    return datetime.now(timezone.utc)
+
+
+def parse_expiry(value: str | None) -> datetime | None:
+    """Parse a stored expiry into the naive UTC datetime `google-auth` expects.
+
+    Accepts both the offset-aware ISO strings written from 2.0.4 on and the naive
+    ones written by earlier versions (interpreted as UTC). Returns None when the
+    value is missing or unparseable.
+    """
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
+def serialize_expiry(value: datetime | None) -> str | None:
+    """Serialize an expiry as an offset-aware UTC ISO string."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat()
