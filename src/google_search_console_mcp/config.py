@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -225,3 +226,66 @@ def serialize_expiry(value: datetime | None) -> str | None:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc).isoformat()
+
+
+# ---------------------------------------------------------------------------
+# Runtime settings
+# ---------------------------------------------------------------------------
+
+DEFAULT_CACHE_TTL_SECONDS = 6 * 60 * 60
+DEFAULT_INSPECT_CACHE_TTL_SECONDS = 60 * 60
+DEFAULT_INSPECT_CONCURRENCY = 5
+DEFAULT_CACHE_MAX_ENTRIES = 256
+DEFAULT_DATA_STATE = "all"
+DEFAULT_REPORT_LANGUAGE = "en"
+SUPPORTED_LANGUAGES = ("en", "it")
+
+HTTP_TIMEOUT_SECONDS = 30.0
+HTTP_CONNECT_TIMEOUT_SECONDS = 10.0
+MAX_RETRIES = 4
+RETRY_BASE_DELAY_SECONDS = 1.0
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+@dataclass(frozen=True)
+class Settings:
+    """Runtime knobs, all overridable by environment variable."""
+
+    cache_ttl_seconds: int = DEFAULT_CACHE_TTL_SECONDS
+    inspect_cache_ttl_seconds: int = DEFAULT_INSPECT_CACHE_TTL_SECONDS
+    cache_max_entries: int = DEFAULT_CACHE_MAX_ENTRIES
+    inspect_concurrency: int = DEFAULT_INSPECT_CONCURRENCY
+    data_state: str = DEFAULT_DATA_STATE
+    report_language: str = DEFAULT_REPORT_LANGUAGE
+    timeout_seconds: float = HTTP_TIMEOUT_SECONDS
+    connect_timeout_seconds: float = HTTP_CONNECT_TIMEOUT_SECONDS
+    max_retries: int = MAX_RETRIES
+    retry_base_delay_seconds: float = RETRY_BASE_DELAY_SECONDS
+
+    @classmethod
+    def from_env(cls) -> Settings:
+        language = os.environ.get("GSC_REPORT_LANGUAGE", DEFAULT_REPORT_LANGUAGE).strip().lower()
+        if language not in SUPPORTED_LANGUAGES:
+            language = DEFAULT_REPORT_LANGUAGE
+        data_state = os.environ.get("GSC_DATA_STATE", DEFAULT_DATA_STATE).strip().lower()
+        if data_state not in ("all", "final"):
+            data_state = DEFAULT_DATA_STATE
+        return cls(
+            cache_ttl_seconds=max(0, _env_int("GSC_CACHE_TTL_SECONDS", DEFAULT_CACHE_TTL_SECONDS)),
+            inspect_cache_ttl_seconds=max(
+                0, _env_int("GSC_INSPECT_CACHE_TTL_SECONDS", DEFAULT_INSPECT_CACHE_TTL_SECONDS)
+            ),
+            cache_max_entries=max(1, _env_int("GSC_CACHE_MAX_ENTRIES", DEFAULT_CACHE_MAX_ENTRIES)),
+            inspect_concurrency=max(1, _env_int("GSC_INSPECT_CONCURRENCY", DEFAULT_INSPECT_CONCURRENCY)),
+            data_state=data_state,
+            report_language=language,
+        )
