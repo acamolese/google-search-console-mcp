@@ -25,10 +25,12 @@ def require_opt_in():
 
 
 @pytest.fixture
-def live_client():
-    from google_search_console_mcp.client import get_client
+async def live_client():
+    from google_search_console_mcp.client import close_client, get_client
 
-    return get_client()
+    client = get_client()
+    yield client
+    await close_client()
 
 
 @pytest.fixture

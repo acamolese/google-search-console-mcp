@@ -34,8 +34,14 @@ def load_fixture(*parts: str) -> dict:
 
 
 @pytest.fixture(autouse=True)
-def clean_env(monkeypatch, tmp_path):
-    """Isolate every test from the developer's real credentials and config."""
+def clean_env(monkeypatch, tmp_path, request):
+    """Isolate every test from the developer's real credentials and config.
+
+    Live tests are the exception: they exist to exercise the real credentials,
+    so stripping the environment would leave them nothing to authenticate with.
+    """
+    if request.node.get_closest_marker("live"):
+        return tmp_path
     for name in GSC_ENV_VARS:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
@@ -96,11 +102,14 @@ async def gsc_client(fake_provider, http_client, settings):
 
 
 @pytest.fixture(autouse=True)
-def no_real_sleep(monkeypatch):
+def no_real_sleep(monkeypatch, request):
     """Retry backoff must not actually delay the suite; record the delays instead."""
     import asyncio
 
     recorded: list[float] = []
+    if request.node.get_closest_marker("live"):
+        # A live test talking to Google must be allowed to back off for real.
+        return recorded
     real_sleep = asyncio.sleep
 
     async def fake_sleep(delay, *args, **kwargs):
@@ -112,10 +121,14 @@ def no_real_sleep(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def reset_singletons():
+def reset_singletons(request):
     """Never let one test's shared client leak into the next."""
     from google_search_console_mcp import client as client_module
 
+    if request.node.get_closest_marker("live"):
+        # A live test builds one real client and closes it itself.
+        yield
+        return
     client_module.reset_client()
     yield
     client_module.reset_client()
