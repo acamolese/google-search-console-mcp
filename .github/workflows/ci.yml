@@ -10,41 +10,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
-    name: build & import (py${{ matrix.python-version }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install package
-        run: |
-          python -m pip install --upgrade pip
-          pip install .
-
-      - name: Smoke import
-        run: |
-          python -c "import google_search_console_mcp; print('import ok')"
-
-      - name: Entry point resolves
-        shell: bash
-        run: |
-          mcp-google-search-console --help || true
-
   lint:
     name: lint (ruff)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -53,6 +26,62 @@ jobs:
       - name: Install ruff
         run: pip install "ruff>=0.5"
       - name: Ruff check
-        run: ruff check src
+        run: ruff check src tests scripts
       - name: Ruff format (check only)
-        run: ruff format --check src
+        run: ruff format --check src tests scripts
+
+  test:
+    name: test (py${{ matrix.python-version }}, ${{ matrix.os }}, ${{ matrix.mcp }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.13"]
+        mcp: ["mcp<2", "mcp>=2"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package and test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install "${{ matrix.mcp }}"
+      - name: Report installed SDK
+        run: python -c "import importlib.metadata as m; print('mcp', m.version('mcp'))"
+      - name: Run tests
+        run: pytest -q
+
+  fresh-install:
+    name: fresh install (py${{ matrix.python-version }}, ${{ matrix.os }}, ${{ matrix.mcp }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.13"]
+        mcp: ["mcp<2", "mcp>=2"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build the wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+      - name: Install the wheel into a clean environment
+        shell: bash
+        run: |
+          python -m venv fresh
+          if [ -d fresh/bin ]; then FRESH=fresh/bin; else FRESH=fresh/Scripts; fi
+          echo "FRESH=$FRESH" >> "$GITHUB_ENV"
+          "$FRESH/python" -m pip install --upgrade pip
+          "$FRESH/python" -m pip install --no-cache-dir dist/*.whl
+          "$FRESH/python" -m pip install --no-cache-dir "${{ matrix.mcp }}"
+          "$FRESH/python" -c "import importlib.metadata as m; print('mcp', m.version('mcp'))"
+      - name: Smoke test the stdio transport
+        shell: bash
+        run: "$FRESH/python" scripts/smoke_stdio.py --command "$FRESH/mcp-google-search-console"
