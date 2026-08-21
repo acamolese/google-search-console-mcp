@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-google-search-console"
-version = "2.0.4"
+version = "3.0.0"
 description = "MCP server for Google Search Console: query performance data, inspect URLs, check indexing, and generate HTML SEO audit reports from Claude, Cursor, Zed, and any Model Context Protocol client."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -55,8 +55,11 @@ classifiers = [
 ]
 dependencies = [
     "mcp>=1.12,<3",
+    "httpx>=0.27",
+    "pydantic>=2.0",
     "google-auth>=2.0.0",
     "google-auth-oauthlib>=1.0.0",
+    "requests>=2.31",
     "jinja2>=3.1.0",
 ]
 
@@ -107,7 +110,7 @@ select = ["E", "F", "I", "UP", "B", "BLE", "DTZ", "S", "SIM"]
 "src/google_search_console_mcp/audit.py" = ["E501"]
 # S101 asserts, S105/S106 fake secrets, DTZ001 naive datetimes are the subject under
 # test, S104 is a bind address passed to a fake server.
-"tests/**" = ["S101", "S105", "S106", "S104", "DTZ001"]
+"tests/**" = ["S101", "S104", "S105", "S106", "S107", "DTZ001"]
 "scripts/**" = ["S101", "T201"]
 
 [tool.pytest.ini_options]
@@ -123,6 +126,11 @@ filterwarnings = [
 [tool.coverage.run]
 source = ["google_search_console_mcp"]
 omit = [
+    # Both need a terminal or a browser; they are covered by subprocess tests instead.
     "*/__main__.py",
     "*/auth/oauth.py",
 ]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true

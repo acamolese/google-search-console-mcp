@@ -1,0 +1,1 @@
+{"error":{"code":400,"message":"Invalid value at 'dimensions[0]' (TYPE_ENUM), \"queries\"","errors":[{"message":"Invalid value at 'dimensions[0]' (TYPE_ENUM), \"queries\"","domain":"global","reason":"badRequest"}],"status":"INVALID_ARGUMENT"}}
