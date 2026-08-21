@@ -1,0 +1,344 @@
+{
+  "locale": "it-IT",
+  "language_name": "Italiano",
+  "report": {
+    "document_title": "Audit SEO — {site}",
+    "heading": "Audit SEO",
+    "period": "Periodo",
+    "compared_with": "confrontato con {from} – {to}",
+    "generated_on": "Generato il {date}",
+    "data_note": "Tutti i dati provengono dall'API di Google Search Console per la proprietà {site}.",
+    "footer": "Generato a partire dai dati di Google Search Console. I numeri riflettono quanto Google ha registrato per questa proprietà nel periodo selezionato."
+  },
+  "kpi": {
+    "clicks": "Click",
+    "impressions": "Impression",
+    "ctr": "CTR",
+    "position": "Posizione media",
+    "no_baseline": "nessun confronto"
+  },
+  "sections": {
+    "overview": "Performance generale",
+    "issues": "Criticità e opportunità",
+    "top_queries": "Query principali",
+    "top_pages": "Pagine principali",
+    "countries": "Paesi principali",
+    "sitemaps": "Sitemap",
+    "indexing": "Indicizzazione delle pagine principali",
+    "strategy": "Strategia consigliata",
+    "quick_wins": "Quick win prioritizzati",
+    "page_two": "Opportunità in seconda pagina",
+    "ctr_gaps": "Pagine sotto il CTR atteso",
+    "themes": "Temi principali (traffico non-brand)",
+    "cannibalization": "Cannibalizzazione keyword",
+    "questions": "Opportunità featured snippet",
+    "devices": "Divario mobile e desktop",
+    "geo": "Opportunità geografiche",
+    "roadmap": "Roadmap 30 / 60 / 90 giorni"
+  },
+  "columns": {
+    "query": "Query",
+    "page": "Pagina",
+    "url": "URL",
+    "host": "Host",
+    "country": "Paese",
+    "clicks": "Click",
+    "impressions": "Impression",
+    "ctr": "CTR",
+    "expected_ctr": "CTR atteso",
+    "position": "Pos.",
+    "current_clicks": "Click attuali",
+    "potential_clicks": "Click potenziali",
+    "uplift": "Incremento",
+    "theme": "Tema",
+    "query_count": "Query",
+    "path": "Percorso",
+    "warnings": "Warning",
+    "errors": "Errori",
+    "last_downloaded": "Ultimo download",
+    "verdict": "Verdetto",
+    "coverage": "Copertura",
+    "metric": "Metrica",
+    "previous": "Precedente",
+    "current": "Attuale",
+    "delta": "Variazione",
+    "impact": "Impatto",
+    "effort": "Sforzo",
+    "action": "Azione",
+    "diagnosis": "Causa probabile",
+    "severity": "Gravità"
+  },
+  "severity": {
+    "high": "Alta",
+    "medium": "Media",
+    "low": "Bassa"
+  },
+  "effort": {
+    "low": "Basso",
+    "medium": "Medio",
+    "high": "Alto"
+  },
+  "impact": {
+    "low": "Basso",
+    "medium": "Medio",
+    "high": "Alto"
+  },
+  "category": {
+    "indexing": "Indicizzazione",
+    "technical": "Tecnico",
+    "content": "Contenuti",
+    "performance": "Performance",
+    "opportunity": "Opportunità"
+  },
+  "diagnosis": {
+    "disappeared": "La pagina ha smesso del tutto di ricevere click",
+    "ranking_loss": "La posizione media è peggiorata",
+    "demand_decline": "Meno impression a parità di posizione: è calata la domanda",
+    "ctr_collapse": "Stesse impression e stessa posizione, molti meno click: lo snippet non funziona più",
+    "mixed": "Più fattori cambiati insieme"
+  },
+  "executive": {
+    "heading": "Sintesi esecutiva",
+    "trend_up": "I click sono cresciuti del {pct}% rispetto al periodo precedente.",
+    "trend_down": "I click sono calati del {pct}% rispetto al periodo precedente.",
+    "trend_flat": "I click sono stabili rispetto al periodo precedente.",
+    "brand_share": "Il {pct}% dei click arriva da query di marca, il {non_brand_pct}% da query non-brand.",
+    "issue_count": "Rilevate {high} criticità di gravità alta e {medium} di gravità media.",
+    "uplift": "Le opportunità elencate valgono un incremento stimato di +{clicks} click.",
+    "quick_win_count": "Ci sono {n} quick win pronti da avviare."
+  },
+  "issue": {
+    "paginated_pages": {
+      "title": "{n} pagine paginate indicizzate",
+      "title_one": "Una pagina paginata indicizzata",
+      "description": "Gli URL paginati raccolgono {clicks} click e competono con le pagine di categoria principali. Google può scegliere un canonical diverso da quello dichiarato.",
+      "description_one": "Un URL paginato raccoglie {clicks} click e compete con la pagina di categoria principale. Google può scegliere un canonical diverso da quello dichiarato.",
+      "strategy": [
+        "Aggiungere un rel=\"canonical\" su tutti gli URL paginati che punti alla prima pagina della categoria",
+        "Verificare con URL Inspection che Google rispetti il canonical dichiarato",
+        "In alternativa usare infinite scroll con history.pushState, così l'URL principale resta invariato",
+        "Controllare che gli URL paginati non siano presenti nella sitemap XML",
+        "Se le pagine dalla seconda in poi hanno contenuti unici da posizionare, differenziarne title e description"
+      ]
+    },
+    "http_pages": {
+      "title": "La versione HTTP è ancora indicizzata",
+      "description": "{n} pagine HTTP hanno raccolto {clicks} click nel periodo. La coesistenza di HTTP e HTTPS in indice diluisce i segnali di ranking e genera contenuti duplicati.",
+      "description_one": "Una pagina HTTP ha raccolto {clicks} click nel periodo. La coesistenza di HTTP e HTTPS in indice diluisce i segnali di ranking e genera contenuti duplicati.",
+      "strategy": [
+        "Configurare un redirect 301 permanente da http:// a https:// a livello server o CDN",
+        "Attivare HSTS con max-age di almeno un anno",
+        "Aggiornare la sitemap XML con soli URL HTTPS e risottometterla",
+        "Verificare con curl -I che ogni URL HTTP risponda 301 e non 302",
+        "Richiedere la reindicizzazione delle versioni HTTPS tramite URL Inspection"
+      ]
+    },
+    "mixed_hosts": {
+      "title": "Più hostname indicizzati",
+      "description": "{n} hostname diversi generano traffico: {hosts}. Senza una versione canonica unica, link e segnali di autorità si disperdono.",
+      "strategy": [
+        "Scegliere un hostname canonico e impostare redirect 301 da tutti gli altri",
+        "Puntare il canonical di ogni pagina verso l'hostname scelto",
+        "Aggiornare i link interni perché usino l'hostname canonico",
+        "Confermare la proprietà canonica in Search Console e richiedere la reindicizzazione"
+      ]
+    },
+    "low_ctr_queries": {
+      "title": "{n} query in prima pagina ma con pochissimi click",
+      "title_one": "Una query in prima pagina ma con pochissimi click",
+      "description": "Query in top 10 con un CTR sotto il {threshold}%. Il posizionamento c'è, lo snippet non converte. Poco sforzo, ritorno alto.",
+      "strategy": [
+        "Riscrivere il title puntando sull'elemento differenziante per questo pubblico",
+        "Riscrivere la meta description con una call to action chiara, sotto i 155 caratteri",
+        "Aggiungere i dati strutturati che il tipo di pagina supporta, così lo snippet può mostrare di più",
+        "Testare varianti di title che segnalino freschezza dove il tema lo giustifica",
+        "Evitare title generici tipo \"Categoria | Brand\" e preferire formulazioni orientate al beneficio",
+        "Monitorare il CTR settimanalmente dopo ogni modifica e iterare"
+      ]
+    },
+    "page_two_queries": {
+      "title": "{n} query in posizione 11-20 con volume reale",
+      "title_one": "Una query in posizione 11-20 con volume reale",
+      "description": "Query in seconda pagina di Google. Una spinta mirata può portarle in top 10, dove si concentrano quasi tutti i click.",
+      "strategy": [
+        "Individuare quale pagina Google posiziona per ciascuna di queste query",
+        "Colmare i gap di contenuto su quella pagina: specifiche, comparazioni, FAQ",
+        "Aggiungere link interni dalle pagine più forti del sito verso la pagina target",
+        "Analizzare le prime 10 posizioni attuali e colmare il divario che le tiene davanti",
+        "Verificare che la keyword compaia in H1, in un H2, nell'URL e nel primo paragrafo",
+        "Valutare attività di digital PR dove la competizione si gioca sull'autorità"
+      ]
+    },
+    "weak_high_visibility_pages": {
+      "title": "{n} pagine ad alta visibilità convertono male le impression",
+      "title_one": "Una pagina ad alta visibilità converte male le impression",
+      "description": "Pagine con molte impression e pochissimi click. O lo snippet non risponde all'intento della query, oppure la posizione è troppo bassa per essere vista.",
+      "strategy": [
+        "Rivedere title e meta description pagina per pagina",
+        "Verificare che il contenuto above the fold risponda all'intento di ricerca",
+        "Controllare i Core Web Vitals: un LCP lento costa click da mobile",
+        "Verificare se la pagina compete con un'altra pagina del sito sulla stessa query",
+        "Aggiungere i dati strutturati adatti al tipo di pagina"
+      ]
+    },
+    "sitemap_problems": {
+      "title": "{n} sitemap con problemi",
+      "title_one": "Una sitemap con problemi",
+      "description": "Search Console ha segnalato problemi nelle sitemap inviate: URL irraggiungibili, redirect dentro la sitemap, pagine noindex oppure URL non canonici. Warning: {warnings}. Errori: {errors}.",
+      "strategy": [
+        "Aprire ogni sitemap in Search Console per leggere il dettaglio dietro i conteggi",
+        "Rimuovere gli URL che rispondono con redirect, 404 o noindex",
+        "Tenere in sitemap solo URL HTTPS, canonici e senza parametri",
+        "Suddividere in sitemap index le sitemap oltre i 50MB o i 50.000 URL",
+        "Risottomettere la sitemap ripulita",
+        "Automatizzare la generazione della sitemap dal CMS perché non torni a divergere"
+      ]
+    },
+    "indexing_problems": {
+      "title": "{n} pagine principali con problemi di indicizzazione",
+      "title_one": "Una pagina principale con problemi di indicizzazione",
+      "description": "Pagine tra le più importanti del sito che non risultano in stato PASS. Ognuna di queste è traffico a rischio.",
+      "strategy": [
+        "Aprire URL Inspection per ogni pagina e leggere lo stato di copertura esatto",
+        "\"Duplicate, Google chose different canonical\": verificare il canonical dichiarato e se il contenuto è davvero unico",
+        "\"Crawled - currently not indexed\": il contenuto non si guadagna il posto, aumentarne profondità e originalità",
+        "\"Discovered - currently not indexed\": problema di crawl budget, ridurre il numero di URL di basso valore",
+        "Richiedere l'indicizzazione dopo ogni correzione",
+        "Ricontrollare settimanalmente nelle prime due o tre settimane"
+      ]
+    },
+    "traffic_drop": {
+      "title": "Click in calo del {pct}% rispetto al periodo precedente",
+      "description": "I click sono passati da {previous} a {current}. Le impression sono variate del {impressions_pct}%. Va indagato prima di ogni altra voce di questo elenco.",
+      "strategy": [
+        "Confrontare le prime 20 query e pagine nei due periodi per isolare dove è avvenuta la perdita",
+        "Verificare se un core update di Google è caduto in quelle date",
+        "Rivedere le modifiche recenti al sito: deploy, redirect, pagine rimosse, cambi di template",
+        "Controllare i log del server per errori 5xx o accessi bloccati al crawler",
+        "Controllare in Search Console azioni manuali e problemi di sicurezza",
+        "Dove la perdita è concentrata su keyword specifiche, guardare cosa hanno cambiato i risultati che vi hanno superato"
+      ]
+    }
+  },
+  "quick_win": {
+    "rewrite_snippets": {
+      "title": "Riscrivere title e meta description sulle pagine ad alta visibilità",
+      "action": "Partire da {url} ({impressions} impression, CTR {ctr} contro un atteso {expected_ctr}). Incremento stimato: +{uplift} click."
+    },
+    "push_page_two": {
+      "title": "Portare in top 10 le query di seconda pagina",
+      "action": "Partire da \"{query}\" ({impressions} impression, posizione {position}). Colmare i gap di contenuto sulla pagina target, aggiungere link interni e dati strutturati."
+    },
+    "fix_cannibalization": {
+      "title": "Risolvere la cannibalizzazione tra pagine",
+      "action": "\"{query}\" è divisa su {pages} pagine. Consolidare i canonical e scegliere una sola pagina target per query."
+    },
+    "force_https": {
+      "title": "Forzare HTTPS ovunque con redirect 301",
+      "action": "Configurare il 301 da HTTP a HTTPS a livello server, attivare HSTS, aggiornare la sitemap e risottometterla."
+    },
+    "canonicalize_pagination": {
+      "title": "Canonicalizzare le pagine paginate",
+      "action": "Aggiungere rel=canonical dagli URL paginati verso la prima pagina della categoria per consolidare l'autorità."
+    },
+    "answer_questions": {
+      "title": "Puntare a featured snippet e People Also Ask",
+      "action": "{n} query interrogative sono già in top 15. Aggiungere sezioni FAQ strutturate con risposte brevi di 40-60 parole e markup FAQPage.",
+      "action_one": "Una query interrogativa è già in top 15. Aggiungere una sezione FAQ strutturata con una risposta breve di 40-60 parole e markup FAQPage."
+    },
+    "reduce_brand_dependency": {
+      "title": "Ridurre la dipendenza dal traffico di marca",
+      "action": "Il {pct}% dei click arriva da query di marca. Investire in contenuti informativi di top of funnel per allargare il bacino."
+    },
+    "build_topic_hub": {
+      "title": "Costruire un hub di contenuti su \"{theme}\"",
+      "action": "\"{theme}\" concentra {clicks} click su {queries} query. Creare una pagina pillar e un cluster di contenuti di supporto."
+    }
+  },
+  "roadmap": {
+    "30": "Primi 30 giorni",
+    "60": "Dal giorno 30 al 60",
+    "90": "Dal giorno 60 al 90",
+    "critical_prefix": "[CRITICO]",
+    "nothing_critical": "Nessun intervento critico in sospeso: passare direttamente alle ottimizzazioni di medio termine",
+    "optimize_page_two": "Ottimizzare {n} pagine target per le query in posizione 11-20",
+    "fix_cannibalization": "Risolvere la cannibalizzazione sulle {n} query di maggior valore",
+    "content_hubs": "Costruire hub di contenuti sui temi principali: {themes}",
+    "expand_non_brand": "Allargare il funnel con contenuti informativi per far crescere il traffico non-brand",
+    "localize": "Valutare la localizzazione per i mercati emergenti: {countries}",
+    "backlinks": "Analizzare i backlink e pianificare digital PR per far crescere l'autorità del dominio",
+    "competitors": "Analizzare i competitor per individuare i gap di contenuto da colmare"
+  },
+  "device": {
+    "mobile": "Mobile",
+    "desktop": "Desktop",
+    "tablet": "Tablet",
+    "gap": "Divario di posizione",
+    "mobile_share": "Quota di click da mobile",
+    "has_gap": "Mobile e desktop si posizionano in modo abbastanza diverso da meritare un approfondimento"
+  },
+  "empty": {
+    "no_issues": "Nessuna criticità ha superato le soglie per questa proprietà e questo periodo.",
+    "no_rows": "Nessun dato per questa sezione nel periodo selezionato.",
+    "no_opportunities": "Nessuna opportunità sopra le soglie in questo periodo."
+  },
+  "stopwords": [
+    "anche",
+    "ancora",
+    "avere",
+    "come",
+    "cosa",
+    "così",
+    "dagli",
+    "dalla",
+    "dalle",
+    "degli",
+    "della",
+    "delle",
+    "dello",
+    "dopo",
+    "essere",
+    "fare",
+    "molto",
+    "negli",
+    "nella",
+    "nelle",
+    "nello",
+    "oppure",
+    "perché",
+    "però",
+    "prima",
+    "quale",
+    "quali",
+    "quando",
+    "quanto",
+    "quello",
+    "questa",
+    "queste",
+    "questi",
+    "questo",
+    "sono",
+    "sopra",
+    "sotto",
+    "stato",
+    "sugli",
+    "sulla",
+    "sulle",
+    "sullo",
+    "tutti",
+    "tutto",
+    "verso"
+  ],
+  "question_words": [
+    "come",
+    "cosa",
+    "quando",
+    "dove",
+    "quale",
+    "chi",
+    "perché",
+    "perche",
+    "quanto",
+    "quali"
+  ]
+}

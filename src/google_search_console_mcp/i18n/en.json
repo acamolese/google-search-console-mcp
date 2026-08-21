@@ -1,0 +1,345 @@
+{
+  "locale": "en-US",
+  "language_name": "English",
+  "report": {
+    "document_title": "SEO audit — {site}",
+    "heading": "SEO audit",
+    "period": "Period",
+    "compared_with": "compared with {from} – {to}",
+    "generated_on": "Generated on {date}",
+    "data_note": "All figures come from the Google Search Console API for the property {site}.",
+    "footer": "Generated from Google Search Console data. Figures reflect what Google recorded for this property in the selected period."
+  },
+  "kpi": {
+    "clicks": "Clicks",
+    "impressions": "Impressions",
+    "ctr": "CTR",
+    "position": "Average position",
+    "no_baseline": "no baseline"
+  },
+  "sections": {
+    "overview": "Overall performance",
+    "issues": "Issues and opportunities",
+    "top_queries": "Top queries",
+    "top_pages": "Top pages",
+    "countries": "Top countries",
+    "sitemaps": "Sitemaps",
+    "indexing": "Indexing of the top pages",
+    "strategy": "Recommended strategy",
+    "quick_wins": "Prioritised quick wins",
+    "page_two": "Page-two opportunities",
+    "ctr_gaps": "Pages below their expected CTR",
+    "themes": "Main themes (non-brand traffic)",
+    "cannibalization": "Keyword cannibalisation",
+    "questions": "Featured snippet opportunities",
+    "devices": "Mobile and desktop gap",
+    "geo": "Geographic opportunities",
+    "roadmap": "30 / 60 / 90 day roadmap"
+  },
+  "columns": {
+    "query": "Query",
+    "page": "Page",
+    "url": "URL",
+    "host": "Host",
+    "country": "Country",
+    "clicks": "Clicks",
+    "impressions": "Impressions",
+    "ctr": "CTR",
+    "expected_ctr": "Expected CTR",
+    "position": "Pos.",
+    "current_clicks": "Current clicks",
+    "potential_clicks": "Potential clicks",
+    "uplift": "Uplift",
+    "theme": "Theme",
+    "query_count": "Queries",
+    "path": "Path",
+    "warnings": "Warnings",
+    "errors": "Errors",
+    "last_downloaded": "Last downloaded",
+    "verdict": "Verdict",
+    "coverage": "Coverage",
+    "metric": "Metric",
+    "previous": "Previous",
+    "current": "Current",
+    "delta": "Change",
+    "impact": "Impact",
+    "effort": "Effort",
+    "action": "Action",
+    "diagnosis": "Likely cause",
+    "severity": "Severity"
+  },
+  "severity": {
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low"
+  },
+  "effort": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High"
+  },
+  "impact": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High"
+  },
+  "category": {
+    "indexing": "Indexing",
+    "technical": "Technical",
+    "content": "Content",
+    "performance": "Performance",
+    "opportunity": "Opportunity"
+  },
+  "diagnosis": {
+    "disappeared": "The page stopped receiving clicks entirely",
+    "ranking_loss": "Average position got worse",
+    "demand_decline": "Fewer impressions at a stable position: demand fell",
+    "ctr_collapse": "Same impressions and position, far fewer clicks: the snippet stopped working",
+    "mixed": "Several factors changed at once"
+  },
+  "executive": {
+    "heading": "Executive summary",
+    "trend_up": "Clicks are up {pct}% against the previous period.",
+    "trend_down": "Clicks are down {pct}% against the previous period.",
+    "trend_flat": "Clicks are stable against the previous period.",
+    "brand_share": "{pct}% of clicks come from brand queries; {non_brand_pct}% from non-brand.",
+    "issue_count": "{high} high-severity and {medium} medium-severity issues detected.",
+    "uplift": "The opportunities below add up to an estimated +{clicks} clicks.",
+    "quick_win_count": "{n} quick wins are ready to start."
+  },
+  "issue": {
+    "paginated_pages": {
+      "title": "{n} paginated pages are indexed",
+      "title_one": "One paginated page is indexed",
+      "description": "Paginated URLs collect {clicks} clicks and compete with the main category pages. Google may pick a canonical other than the one you declare.",
+      "description_one": "A paginated URL collects {clicks} clicks and competes with the main category page. Google may pick a canonical other than the one you declare.",
+      "strategy": [
+        "Add a rel=\"canonical\" on every paginated URL pointing at page one of the category",
+        "Use URL Inspection to confirm Google honours the declared canonical",
+        "Alternatively, use infinite scroll with history.pushState so the main URL stays in place",
+        "Check that paginated URLs are not listed in the XML sitemap",
+        "If pages 2+ carry unique content worth ranking, give them differentiated titles and descriptions"
+      ]
+    },
+    "http_pages": {
+      "title": "The HTTP version is still indexed",
+      "description": "{n} HTTP pages collected {clicks} clicks in the period. HTTP and HTTPS coexisting in the index splits ranking signals and creates duplicate content.",
+      "description_one": "One HTTP page collected {clicks} clicks in the period. HTTP and HTTPS coexisting in the index splits ranking signals and creates duplicate content.",
+      "strategy": [
+        "Configure a permanent 301 redirect from http:// to https:// at the server or CDN level",
+        "Enable HSTS with a max-age of at least one year",
+        "Update the XML sitemap to HTTPS URLs only and resubmit it",
+        "Verify with curl -I that every HTTP URL answers 301, not 302",
+        "Request reindexing of the HTTPS versions through URL Inspection"
+      ]
+    },
+    "mixed_hosts": {
+      "title": "Multiple hostnames are indexed",
+      "description": "{n} different hostnames generate traffic: {hosts}. Without one canonical version, links and authority signals are spread across them.",
+      "strategy": [
+        "Pick one canonical hostname and 301 redirect all others to it",
+        "Point every page's canonical tag at the chosen hostname",
+        "Update internal links to use the canonical hostname",
+        "Confirm the canonical property in Search Console and request reindexing"
+      ]
+    },
+    "low_ctr_queries": {
+      "title": "{n} queries rank on page one but are barely clicked",
+      "title_one": "One query ranks on page one but is barely clicked",
+      "description": "These queries sit in the top 10 with a CTR below {threshold}%. The ranking is there; the snippet is not converting. Low effort, high return.",
+      "strategy": [
+        "Rewrite the title tag around the differentiator that matters to this audience",
+        "Rewrite the meta description with a clear call to action, under 155 characters",
+        "Add the structured data the page type supports so the snippet can carry more",
+        "Test title variants that signal freshness where the topic warrants it",
+        "Avoid generic \"Category | Brand\" titles in favour of benefit-led phrasing",
+        "Track CTR weekly after each change and iterate"
+      ]
+    },
+    "page_two_queries": {
+      "title": "{n} queries sit in positions 11-20 with real volume",
+      "title_one": "One query sits in positions 11-20 with real volume",
+      "description": "Queries on page two of Google. A focused push can move them into the top 10, where almost all of the clicks are.",
+      "strategy": [
+        "Identify which page Google ranks for each of these queries",
+        "Fill the content gaps on that page: specifications, comparisons, FAQs",
+        "Add internal links from the site's strongest pages to the target page",
+        "Read the current top 10 and close the gap that keeps them ahead",
+        "Check the keyword appears in the H1, an H2, the URL and the first paragraph",
+        "Consider digital PR where the competition is driven by authority"
+      ]
+    },
+    "weak_high_visibility_pages": {
+      "title": "{n} high-visibility pages convert impressions poorly",
+      "title_one": "One high-visibility page converts impressions poorly",
+      "description": "Pages with many impressions and very few clicks. Either the snippet does not match the intent behind the query, or the position is too low to be seen.",
+      "strategy": [
+        "Review title and meta description page by page",
+        "Check that the content above the fold answers the search intent",
+        "Review Core Web Vitals: a slow LCP costs mobile clicks",
+        "Check whether the page competes with another page of the site for the same query",
+        "Add the structured data that fits the page type"
+      ]
+    },
+    "sitemap_problems": {
+      "title": "{n} sitemaps report problems",
+      "title_one": "One sitemap reports problems",
+      "description": "Search Console flagged problems in the submitted sitemaps: unreachable URLs, redirects inside the sitemap, noindex pages, or non-canonical URLs. Warnings: {warnings}. Errors: {errors}.",
+      "strategy": [
+        "Open each sitemap in Search Console to read the detail behind the counts",
+        "Remove URLs that redirect, 404 or carry noindex",
+        "Keep only HTTPS, canonical, parameter-free URLs in the sitemap",
+        "Split sitemaps above 50MB or 50,000 URLs into a sitemap index",
+        "Resubmit the cleaned sitemap",
+        "Automate sitemap generation from the CMS so it cannot drift again"
+      ]
+    },
+    "indexing_problems": {
+      "title": "{n} top pages have indexing problems",
+      "title_one": "One top page has an indexing problem",
+      "description": "Pages among the site's most important are not in a PASS state. Every one of them is traffic at risk.",
+      "strategy": [
+        "Open URL Inspection for each page to read the exact coverage state",
+        "\"Duplicate, Google chose different canonical\": check the declared canonical and whether the content is genuinely unique",
+        "\"Crawled - currently not indexed\": the content is not earning its place; improve depth and originality",
+        "\"Discovered - currently not indexed\": a crawl budget problem; reduce the number of low-value URLs",
+        "Request indexing after each fix",
+        "Recheck weekly for the first two to three weeks"
+      ]
+    },
+    "traffic_drop": {
+      "title": "Clicks fell {pct}% against the previous period",
+      "description": "Clicks went from {previous} to {current}. Impressions changed by {impressions_pct}%. This needs investigating before anything else on this list.",
+      "strategy": [
+        "Compare the top 20 queries and pages across both periods to isolate where the loss happened",
+        "Check whether a Google core update landed on those dates",
+        "Review recent site changes: deploys, redirects, removed pages, template changes",
+        "Check server logs for 5xx errors or blocked crawler access",
+        "Check Search Console for manual actions and security issues",
+        "Where the loss is concentrated on specific keywords, look at what the results that overtook you changed"
+      ]
+    }
+  },
+  "quick_win": {
+    "rewrite_snippets": {
+      "title": "Rewrite titles and meta descriptions on high-visibility pages",
+      "action": "Start with {url} ({impressions} impressions, CTR {ctr} against an expected {expected_ctr}). Estimated uplift: +{uplift} clicks."
+    },
+    "push_page_two": {
+      "title": "Push the page-two queries into the top 10",
+      "action": "Start with \"{query}\" ({impressions} impressions, position {position}). Fill the content gaps on the target page, add internal links and structured data."
+    },
+    "fix_cannibalization": {
+      "title": "Resolve cannibalisation between pages",
+      "action": "\"{query}\" is split across {pages} pages. Consolidate the canonicals and commit to one target page per query."
+    },
+    "force_https": {
+      "title": "Force HTTPS everywhere with 301 redirects",
+      "action": "Configure the 301 from HTTP to HTTPS at the server level, enable HSTS, update the sitemap and resubmit it."
+    },
+    "canonicalize_pagination": {
+      "title": "Canonicalise the paginated pages",
+      "action": "Add rel=canonical from the paginated URLs to page one of the category to consolidate authority."
+    },
+    "answer_questions": {
+      "title": "Target featured snippets and People Also Ask",
+      "action": "{n} question queries already rank in the top 15. Add structured FAQ sections with short answers of 40 to 60 words and FAQPage markup.",
+      "action_one": "One question query already ranks in the top 15. Add a structured FAQ section with a short answer of 40 to 60 words and FAQPage markup."
+    },
+    "reduce_brand_dependency": {
+      "title": "Reduce the dependency on brand traffic",
+      "action": "{pct}% of clicks come from brand queries. Invest in top-of-funnel informational content to widen the audience."
+    },
+    "build_topic_hub": {
+      "title": "Build a content hub around \"{theme}\"",
+      "action": "\"{theme}\" concentrates {clicks} clicks across {queries} queries. Create a pillar page and a cluster of supporting content."
+    }
+  },
+  "roadmap": {
+    "30": "First 30 days",
+    "60": "Days 30 to 60",
+    "90": "Days 60 to 90",
+    "critical_prefix": "[CRITICAL]",
+    "nothing_critical": "No critical work outstanding: move straight to the medium-term optimisations",
+    "optimize_page_two": "Optimise {n} target pages for the queries in positions 11-20",
+    "fix_cannibalization": "Resolve cannibalisation on the {n} highest-value queries",
+    "content_hubs": "Build content hubs around the main themes: {themes}",
+    "expand_non_brand": "Widen the funnel with informational content to grow non-brand traffic",
+    "localize": "Evaluate localisation for the emerging markets: {countries}",
+    "backlinks": "Audit backlinks and plan digital PR to grow domain authority",
+    "competitors": "Audit competitors to find the content gaps worth filling"
+  },
+  "device": {
+    "mobile": "Mobile",
+    "desktop": "Desktop",
+    "tablet": "Tablet",
+    "gap": "Position gap",
+    "mobile_share": "Mobile share of clicks",
+    "has_gap": "Mobile and desktop rank differently enough to be worth investigating"
+  },
+  "empty": {
+    "no_issues": "No issues matched the thresholds for this property and period.",
+    "no_rows": "No data for this section in the selected period.",
+    "no_opportunities": "No opportunities above the thresholds in this period."
+  },
+  "stopwords": [
+    "about",
+    "after",
+    "also",
+    "another",
+    "because",
+    "been",
+    "before",
+    "being",
+    "between",
+    "both",
+    "each",
+    "from",
+    "have",
+    "here",
+    "into",
+    "more",
+    "most",
+    "much",
+    "only",
+    "other",
+    "over",
+    "same",
+    "some",
+    "such",
+    "than",
+    "that",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "those",
+    "through",
+    "under",
+    "very",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "with",
+    "would",
+    "your"
+  ],
+  "question_words": [
+    "how",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "why",
+    "can",
+    "does",
+    "is"
+  ]
+}
