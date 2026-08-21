@@ -12,16 +12,23 @@ SRC = Path(__file__).resolve().parents[2] / "src" / "google_search_console_mcp"
 STDOUT_ALLOWED = {"__main__.py", "oauth.py"}
 
 EXPECTED_TOOLS = {
+    "gsc_alerts",
     "gsc_audit",
+    "gsc_cannibalization",
     "gsc_compare_periods",
+    "gsc_content_decay",
+    "gsc_ctr_gaps",
     "gsc_doctor",
     "gsc_indexing_issues",
     "gsc_inspect_url",
     "gsc_performance_overview",
+    "gsc_portfolio",
     "gsc_query",
+    "gsc_quick_wins",
     "gsc_site_details",
     "gsc_sitemaps",
     "gsc_sites",
+    "gsc_traffic_drops",
 }
 
 

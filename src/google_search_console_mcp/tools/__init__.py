@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from . import analytics, audit, diagnostics, inspection, sitemaps, sites
+from . import analytics, audit, diagnostics, insights, inspection, sitemaps, sites
 
-MODULES = (sites, analytics, inspection, sitemaps, diagnostics, audit)
+MODULES = (sites, analytics, insights, inspection, sitemaps, diagnostics, audit)
 
 
 def register_all(mcp) -> None:

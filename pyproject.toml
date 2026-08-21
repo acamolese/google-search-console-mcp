@@ -105,9 +105,6 @@ target-version = "py310"
 select = ["E", "F", "I", "UP", "B", "BLE", "DTZ", "S", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
-# audit.py still carries the hardcoded Italian report copy; those long literals move
-# into i18n/it.json in 3.0.0 and this exemption goes away with them.
-"src/google_search_console_mcp/audit.py" = ["E501"]
 # S101 asserts, S105/S106 fake secrets, DTZ001 naive datetimes are the subject under
 # test, S104 is a bind address passed to a fake server.
 "tests/**" = ["S101", "S104", "S105", "S106", "S107", "DTZ001"]
