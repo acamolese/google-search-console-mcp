@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "mcp-google-search-console"
 version = "3.0.1"
-description = "MCP server for Google Search Console: query performance data, inspect URLs, check indexing, and generate HTML SEO audit reports from Claude, Cursor, Zed, and any Model Context Protocol client."
+description = "MCP server for Google Search Console: 17 read-only tools for performance queries, quick wins, CTR gaps, keyword cannibalisation, traffic-drop diagnosis, content decay and indexing checks, plus a self-contained white-label HTML SEO audit in English or Italian. Works with Claude, Cursor, Zed and any Model Context Protocol client."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

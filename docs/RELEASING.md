@@ -71,7 +71,28 @@ mcp-publisher login github
 mcp-publisher publish
 ```
 
-## 5. Refresh the directories
+## 5. Check what the storefronts say
+
+Four places carry a description, and three of them only change when something is
+published:
+
+| Where | Source | Updates when |
+|---|---|---|
+| PyPI summary | `pyproject.toml` `description` | a release is published |
+| PyPI page body | `README.md` | a release is published |
+| MCP registry | `server.json` `description` (≤ 100 chars) | `mcp-publisher publish` |
+| GitHub repo | repo description and topics | edited directly, any time |
+
+The GitHub Release body is extracted from the CHANGELOG section matching the tag.
+A patch release therefore shows only the patch note, even though it is the one
+marked *Latest* and the first thing a visitor reads. When a patch follows a major,
+edit the release body to lead with what the major brought:
+
+```bash
+gh release edit vX.Y.Z --notes-file notes.md
+```
+
+## 6. Refresh the directories
 
 Glama, Smithery and PulseMCP re-read the repository on their own schedule; only
 touch them if the listing is still stale a few days later.
