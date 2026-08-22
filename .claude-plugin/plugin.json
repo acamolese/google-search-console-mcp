@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "google-search-console",
   "displayName": "Google Search Console",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Read Google Search Console from Claude Code: performance queries, indexing checks, cannibalisation and CTR analysis, plus a white-label HTML SEO audit in English or Italian.",
   "author": {
     "name": "Andrea Camolese",

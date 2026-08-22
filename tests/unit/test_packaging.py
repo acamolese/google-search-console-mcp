@@ -204,3 +204,21 @@ def test_every_workflow_file_parses():
         for name, job in parsed["jobs"].items():
             assert job.get("runs-on"), f"{path.name}:{name} has no runner"
             assert job.get("steps"), f"{path.name}:{name} has no steps"
+
+
+def test_the_readme_carries_the_registry_ownership_marker():
+    """The MCP registry reads this off the published PyPI page to prove ownership.
+
+    Without it, `mcp-publisher publish` is refused with a 400. It went missing
+    once already, in a README rewrite.
+    """
+    expected = f"<!-- mcp-name: {load('server.json')['name']} -->"
+    for name in ("README.md", "README.it.md"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        assert text.startswith(expected), f"{name} must open with {expected}"
+
+
+def test_the_readme_shipped_to_pypi_is_the_one_with_the_marker():
+    readme = re.search(r'^readme\s*=\s*"([^"]+)"', (REPO_ROOT / "pyproject.toml").read_text(), re.M)
+    assert readme, "pyproject declares no readme"
+    assert "mcp-name:" in (REPO_ROOT / readme.group(1)).read_text(encoding="utf-8")

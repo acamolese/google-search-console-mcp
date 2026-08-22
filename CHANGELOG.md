@@ -6,6 +6,12 @@ All notable changes to `mcp-google-search-console` are documented in this file. 
 
 _Nothing yet._
 
+## [3.0.1] - 2026-08-22
+
+### Fixed
+
+- Restored the `mcp-name: io.github.acamolese/google-search-console-mcp` marker at the top of the README. The MCP registry reads it from the published PyPI page to prove the package and the server entry belong to the same owner, and the 3.0.0 README rewrite dropped it, so `mcp-publisher publish` was refused. A test now fails the build if it goes missing again.
+
 ## [3.0.0] - 2026-08-21
 
 ### Breaking changes

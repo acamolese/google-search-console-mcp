@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "google-search-console",
   "display_name": "Google Search Console",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Read Google Search Console: performance queries, indexing checks, SEO analysis and a white-label HTML audit report.",
   "long_description": "Seventeen read-only tools over the Google Search Console API, plus a self-contained HTML SEO audit in English or Italian.\n\nRequires `uv` on the machine (https://docs.astral.sh/uv/), which provides the `uvx` command this bundle launches. Credentials: create a Desktop app OAuth client in Google Cloud Console with the Search Console API enabled, then run `uvx mcp-google-search-console auth` once to obtain a refresh token.\n\nThe OAuth scope is read-only: no tool can modify a property, a sitemap or anything else in Search Console.",
   "author": {

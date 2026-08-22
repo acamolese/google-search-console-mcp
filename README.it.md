@@ -1,3 +1,5 @@
+<!-- mcp-name: io.github.acamolese/google-search-console-mcp -->
+
 # Google Search Console MCP
 
 [English](README.md) · **Italiano**

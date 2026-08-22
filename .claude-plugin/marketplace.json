@@ -10,7 +10,7 @@
     {
       "name": "google-search-console",
       "source": "./",
-      "version": "3.0.0",
+      "version": "3.0.1",
       "description": "Google Search Console for Claude Code: 17 read-only tools and a white-label HTML SEO audit."
     }
   ]
