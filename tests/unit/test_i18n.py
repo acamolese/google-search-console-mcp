@@ -75,7 +75,7 @@ def test_no_string_is_empty(language):
 
 def test_translations_carry_no_client_or_vertical_specifics():
     """A leftover from a real engagement in the copy is a client-data leak."""
-    banned = ("made in italy", "non-iron", "camicissima", "camicie")
+    banned = ("made in italy", "non-iron", "shirt", "camicia")
     for language in i18n.available_languages():
         text = (I18N_DIR / f"{language}.json").read_text(encoding="utf-8").lower()
         for phrase in banned:
