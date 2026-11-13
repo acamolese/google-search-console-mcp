@@ -21,8 +21,17 @@ from .credentials import SCOPES, _write_secret
 FLOW_TIMEOUT_SECONDS = 300
 
 
-def run_oauth_flow(open_browser: bool = True, timeout_seconds: int = FLOW_TIMEOUT_SECONDS) -> dict[str, Any]:
-    """Authorize the app and store the resulting token. Returns the saved payload."""
+def run_oauth_flow(
+    open_browser: bool = True,
+    timeout_seconds: int = FLOW_TIMEOUT_SECONDS,
+    print_env: bool = False,
+) -> dict[str, Any]:
+    """Authorize the app and store the resulting token. Returns the saved payload.
+
+    The client secret and refresh token are printed only with ``print_env``:
+    terminal scrollback, CI logs and agent transcripts keep stdout around, and a
+    refresh token there is a long-lived credential.
+    """
     from google_auth_oauthlib.flow import InstalledAppFlow
 
     client = config.load_oauth_client()
@@ -54,9 +63,14 @@ def run_oauth_flow(open_browser: bool = True, timeout_seconds: int = FLOW_TIMEOU
     _write_secret(path, payload)
 
     print(f"\nToken saved to {path}")
-    print("\nFor a stateless setup (Docker, CI, a remote host), export these instead:\n")
-    print(f'export GSC_CLIENT_ID="{client["client_id"]}"')
-    print(f'export GSC_CLIENT_SECRET="{client["client_secret"]}"')
-    print(f'export GSC_REFRESH_TOKEN="{credentials.refresh_token}"')
+    if print_env:
+        print("\nFor a stateless setup (Docker, CI, a remote host), export these instead.")
+        print("They are secrets: do not paste them into logs, tickets or chats.\n")
+        print(f'export GSC_CLIENT_ID="{client["client_id"]}"')
+        print(f'export GSC_CLIENT_SECRET="{client["client_secret"]}"')
+        print(f'export GSC_REFRESH_TOKEN="{credentials.refresh_token}"')
+    else:
+        print("\nFor a stateless setup (Docker, CI, a remote host), re-run with --print-env")
+        print("to print the GSC_* environment variables, or copy the token file.")
     print("\nRun `mcp-google-search-console doctor` to verify the setup.")
     return payload

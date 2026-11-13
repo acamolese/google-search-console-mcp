@@ -109,12 +109,13 @@ Credentials are resolved in this order:
    uvx mcp-google-search-console auth
    ```
 
-3. The browser flow prints the three `export` lines for a stateless setup, and
-   also stores a token at `~/.config/mcp-google-search-console/token.json` with
-   `0600` permissions.
+3. The browser flow stores a token at
+   `~/.config/mcp-google-search-console/token.json` with `0600` permissions.
+   Secrets are never printed by default; add `--print-env` to also get the three
+   `export` lines for a stateless setup.
 
-On a headless machine, run `auth` on your laptop and copy the three environment
-variables across. `--no-browser` prints the URL instead of opening one, but still
+On a headless machine, run `auth --print-env` on your laptop and copy the three
+environment variables across. `--no-browser` prints the URL instead of opening one, but still
 needs a local redirect.
 
 ### Service account

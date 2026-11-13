@@ -111,12 +111,13 @@ Le credenziali vengono risolte in quest'ordine:
    uvx mcp-google-search-console auth
    ```
 
-3. Il flusso via browser stampa le tre righe `export` per una configurazione
-   stateless e salva anche un token in
-   `~/.config/mcp-google-search-console/token.json` con permessi `0600`.
+3. Il flusso via browser salva un token in
+   `~/.config/mcp-google-search-console/token.json` con permessi `0600`. Di
+   default non stampa segreti; con `--print-env` mostra anche le tre righe
+   `export` per una configurazione stateless.
 
-Su una macchina headless conviene eseguire `auth` sul proprio computer e copiare
-le tre variabili d'ambiente. L'opzione `--no-browser` stampa l'URL invece di
+Su una macchina headless conviene eseguire `auth --print-env` sul proprio
+computer e copiare le tre variabili d'ambiente. L'opzione `--no-browser` stampa l'URL invece di
 aprire il browser, ma richiede comunque un redirect locale.
 
 ### Service account

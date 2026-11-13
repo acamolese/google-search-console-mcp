@@ -1,7 +1,7 @@
 """Command-line entry point.
 
 mcp-google-search-console serve [--transport stdio|streamable-http]
-mcp-google-search-console auth [--no-browser]
+mcp-google-search-console auth [--no-browser] [--print-env]
 mcp-google-search-console doctor
 mcp-google-search-console version
 """
@@ -42,6 +42,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=300,
         help="seconds to wait for the browser redirect (default 300)",
     )
+    auth.add_argument(
+        "--print-env",
+        action="store_true",
+        help="also print the client secret and refresh token as export lines (secrets)",
+    )
 
     sub.add_parser("doctor", help="report the current configuration and check access")
     sub.add_parser("version", help="print the package version")
@@ -67,7 +72,11 @@ def main(argv: list[str] | None = None) -> int:
     if command == "auth":
         from .auth.oauth import run_oauth_flow
 
-        run_oauth_flow(open_browser=not parsed.no_browser, timeout_seconds=parsed.timeout)
+        run_oauth_flow(
+            open_browser=not parsed.no_browser,
+            timeout_seconds=parsed.timeout,
+            print_env=parsed.print_env,
+        )
         return 0
 
     if command == "doctor":
