@@ -4,6 +4,10 @@ All notable changes to `mcp-google-search-console` are documented in this file. 
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [3.0.2] - 2026-11-13
+
 ### Security
 
 - `auth` no longer prints the OAuth client secret and the refresh token to stdout. Terminal scrollback, CI logs and agent transcripts kept a long-lived credential in plain text. The `export GSC_*` lines are now printed only with the new `--print-env` flag.
