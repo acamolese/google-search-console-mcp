@@ -277,6 +277,11 @@
     "mobile_share": "Mobile share of clicks",
     "has_gap": "Mobile and desktop rank differently enough to be worth investigating"
   },
+  "skipped": {
+    "heading": "Some sections could not be checked",
+    "sitemaps": "Sitemaps were not checked: the Search Console API call failed. An empty sitemap section does not mean there are no sitemap problems.",
+    "content_decay": "The month-by-month page history could not be fetched in full: content decay was not checked."
+  },
   "empty": {
     "no_issues": "No issues matched the thresholds for this property and period.",
     "no_rows": "No data for this section in the selected period.",

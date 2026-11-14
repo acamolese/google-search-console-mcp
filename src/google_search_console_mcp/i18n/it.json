@@ -277,6 +277,11 @@
     "mobile_share": "Quota di click da mobile",
     "has_gap": "Mobile e desktop si posizionano in modo abbastanza diverso da meritare un approfondimento"
   },
+  "skipped": {
+    "heading": "Alcune sezioni non sono state verificate",
+    "sitemaps": "Le sitemap non sono state verificate: la chiamata all'API di Search Console non è riuscita. Una sezione sitemap vuota non significa che non ci siano problemi.",
+    "content_decay": "Lo storico mensile delle pagine non è stato recuperato per intero: il calo dei contenuti (content decay) non è stato verificato."
+  },
   "empty": {
     "no_issues": "Nessuna criticità ha superato le soglie per questa proprietà e questo periodo.",
     "no_rows": "Nessun dato per questa sezione nel periodo selezionato.",

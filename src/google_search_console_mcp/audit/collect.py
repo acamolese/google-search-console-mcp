@@ -45,16 +45,25 @@ async def _totals(gsc, site_url: str, date_from: str, date_to: str, data_state: 
     return rows[0]
 
 
-async def _safe(coro, fallback, label: str):
-    """Optional sections must not cost the caller the whole report."""
+async def _safe(coro, fallback, label: str, *, section: str, skipped: list[dict]):
+    """Optional sections must not cost the caller the whole report.
+
+    A failure is still recorded in ``skipped``: an empty section that was never
+    checked must not read as a clean one.
+    """
     try:
         return await coro
     except GSCError as exc:
         logger.warning("Skipping %s: %s", label, exc)
+        skipped.append(
+            {"section": section, "label": label, "status": exc.status, "error": str(exc.message)[:200]}
+        )
         return fallback
 
 
-async def _monthly_by_page(gsc, site_url: str, date_to: str, data_state: str, months: int) -> dict:
+async def _monthly_by_page(
+    gsc, site_url: str, date_to: str, data_state: str, months: int, skipped: list[dict]
+) -> dict:
     """Clicks per page per month, for the content-decay rule."""
     ranges = dates.month_ranges(date_to, months)
     results = await asyncio.gather(
@@ -74,6 +83,8 @@ async def _monthly_by_page(gsc, site_url: str, date_to: str, data_state: str, mo
                 ),
                 [],
                 f"monthly page data for {label}",
+                section="content_decay",
+                skipped=skipped,
             )
             for label, start, end in ranges
         )
@@ -102,6 +113,8 @@ async def collect(
     prev_from, prev_to = dates.previous_range(date_from, date_to)
     window = {"startDate": date_from, "endDate": date_to, "dataState": data_state}
     prev_window = {"startDate": prev_from, "endDate": prev_to, "dataState": data_state}
+
+    skipped: list[dict] = []
 
     await report_progress(ctx, 1, "Fetching performance data")
 
@@ -133,11 +146,11 @@ async def collect(
             {**window, "dimensions": ["query", "page"], "rowLimit": QUERY_PAGE_ROWS},
             ["query", "page"],
         ),
-        _safe(gsc.list_sitemaps(site_url), [], "sitemaps"),
+        _safe(gsc.list_sitemaps(site_url), [], "sitemaps", section="sitemaps", skipped=skipped),
     )
 
     await report_progress(ctx, 2, "Fetching month-by-month history")
-    monthly = await _monthly_by_page(gsc, site_url, date_to, data_state, decay_months)
+    monthly = await _monthly_by_page(gsc, site_url, date_to, data_state, decay_months, skipped)
 
     await report_progress(ctx, 3, "Inspecting the top pages")
     indexing = await _inspect(gsc, site_url, pages, inspect_top_pages)
@@ -164,6 +177,7 @@ async def collect(
         "monthly_by_page": monthly,
         "sitemaps": sitemaps,
         "indexing": indexing,
+        "skipped_sections": skipped,
     }
 
 

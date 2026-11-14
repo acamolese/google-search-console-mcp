@@ -4,7 +4,9 @@ All notable changes to `mcp-google-search-console` are documented in this file. 
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- `gsc_audit` no longer turns a failed optional call into a clean-looking empty section. When the sitemaps call or the month-by-month page history fails (403, quota, transient 5xx), the dataset and the summary returned to the client carry `skipped_sections` (section, label, status, error), and the HTML report shows a warning at the top and "not checked" in place of "no data" in the sitemaps section. Reported in #2.
 
 ## [3.0.2] - 2026-11-13
 
