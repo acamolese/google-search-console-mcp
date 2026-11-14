@@ -84,6 +84,11 @@ python_version = "3.10"
 module = ["mcp.server.mcpserver", "mcp.server.mcpserver.*", "google_auth_oauthlib.*"]
 ignore_missing_imports = true
 
+# _compat.py imports whichever SDK major is installed; only one branch can type-check.
+[[tool.mypy.overrides]]
+module = ["google_search_console_mcp._compat"]
+ignore_errors = true
+
 [project.urls]
 Homepage = "https://github.com/acamolese/google-search-console-mcp"
 Repository = "https://github.com/acamolese/google-search-console-mcp"
