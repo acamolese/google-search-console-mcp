@@ -30,12 +30,14 @@ def build(language="en", branding_overrides=None, sections=None):
     data = dataset()
     translator = i18n.load(language)
     branding = branding_module.load("", branding_overrides)
-    th = Thresholds.from_rows(data["queries"] + data["pages"])
-    issues = detect_issues(data, th)
+    th = Thresholds.from_rows(data["queries"])
+    th_pages = Thresholds.from_rows(data["pages"])
+    issues = detect_issues(data, th, th_pages)
     strategy = strategy_module.build(
         data,
         issues,
         th,
+        th_pages=th_pages,
         brand_terms=["exampleco"],
         stopwords=sorted(translator.stopwords()),
         question_words=translator.question_words(),

@@ -61,7 +61,7 @@ def build(rng):
         clicks = max(0, int(impressions * ctr))
         url = f"https://example.com/widgets/{index}"
         if index == 5:
-            url = "https://example.com/widgets/list?p=2"
+            url = "https://example.com/widgets/list?page=2"
         if index == 6:
             url = "http://example.com/widgets/legacy"
         if index == 8:

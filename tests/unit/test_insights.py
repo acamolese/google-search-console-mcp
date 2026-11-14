@@ -143,10 +143,10 @@ def test_cannibalization_ignores_a_page_with_a_negligible_share():
     assert insights.cannibalization(rows, TH) == []
 
 
-def test_cannibalization_ignores_queries_below_the_click_threshold():
+def test_cannibalization_ignores_queries_below_the_impression_threshold():
     rows = [
-        qp("tiny", "https://example.com/a", 3, 500, 4.0),
-        qp("tiny", "https://example.com/b", 2, 500, 6.0),
+        qp("tiny", "https://example.com/a", 3, 20, 4.0),
+        qp("tiny", "https://example.com/b", 2, 20, 6.0),
     ]
     assert insights.cannibalization(rows, TH) == []
 
@@ -173,7 +173,7 @@ def test_cannibalization_ranks_by_impressions_times_pages():
         # position got materially worse
         (p("u", 30, 1900, 9.0), p("u", 100, 2000, 5.0), "ranking_loss"),
         # same position, far fewer impressions
-        (p("u", 40, 800, 5.2), p("u", 100, 2000, 5.0), "demand_decline"),
+        (p("u", 40, 800, 5.2), p("u", 100, 2000, 5.0), "fewer_impressions"),
         # same position and impressions, CTR collapsed
         (p("u", 20, 1950, 5.1), p("u", 100, 2000, 5.0), "ctr_collapse"),
         # a bit of everything, none decisive

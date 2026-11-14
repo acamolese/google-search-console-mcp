@@ -7,19 +7,21 @@ from typing import Annotated
 
 from pydantic import Field
 
-from .. import dates
 from .._compat import Context, EmbeddedResource, TextResourceContents
 from ..audit import ALL_SECTIONS, run_audit
 from ..config import SUPPORTED_LANGUAGES, Settings
 from ..errors import GSCError
 from ._common import (
+    Compare,
     DateFrom,
     DateTo,
     Days,
     Period,
     SiteUrl,
+    check_compare,
     check_site_url,
     client,
+    resolve_window,
     tool_annotations,
     tool_errors,
 )
@@ -115,15 +117,16 @@ def register(mcp) -> None:
                 )
             ),
         ] = None,
+        compare: Compare = "previous",
         ctx: Context | None = None,
     ) -> list:
         """Build a complete, self-contained HTML SEO audit for one property.
 
-        Collects the period and its baseline, top queries and pages, devices,
-        countries, the daily trend, six months of history, sitemaps and an indexing
-        check, then detects issues and builds a prioritised strategy and roadmap.
-        Thresholds adapt to the size of the property, so small sites get a report
-        too. Available in English and Italian.
+        Collects the period and its baseline (previous period or a year earlier),
+        top queries and pages, devices, countries, the daily trend, six complete
+        months of history, brand totals, sitemaps and an indexing check, then detects
+        issues and builds a prioritised strategy and roadmap. Sections that could not
+        be fetched are named, never shown as clean. English and Italian.
 
         Ask the user for the period if they have not named one: the 28-day default
         is rarely what a client report wants.
@@ -133,9 +136,10 @@ def register(mcp) -> None:
         HTML, followed by the report path or the document itself.
         """
         site_url = check_site_url(site_url)
-        start, end, label = dates.resolve_range(date_from, date_to, days, period)
+        mode_compare = check_compare(compare)
         mode = _resolve_output(output)
         wanted = _check_sections(sections)
+        start, end, label, data_through = await resolve_window(site_url, date_from, date_to, days, period)
 
         result = await run_audit(
             client(),
@@ -149,6 +153,7 @@ def register(mcp) -> None:
             branding_path=branding_path,
             inspect_top_pages=max(0, int(inspect_top_pages or 0)),
             thresholds=thresholds,
+            compare=mode_compare,
             write_file=mode in ("file", "both"),
             settings=settings,
             ctx=ctx,
@@ -156,6 +161,8 @@ def register(mcp) -> None:
 
         summary = dict(result.summary)
         summary["period"] = label
+        if data_through:
+            summary["data_through"] = data_through
         blocks: list = [json.dumps(summary, ensure_ascii=False, separators=(",", ":"))]
 
         if mode in ("inline", "both"):
@@ -165,7 +172,7 @@ def register(mcp) -> None:
                     # camelCase on purpose: it is the field name on mcp 1.x and the
                     # accepted alias on 2.x, so one spelling works on both.
                     resource=TextResourceContents(
-                        uri=result.resource_uri,
+                        uri=result.resource_uri,  # type: ignore[arg-type]  # pydantic coerces str
                         mimeType="text/html",
                         text=result.html,
                     ),

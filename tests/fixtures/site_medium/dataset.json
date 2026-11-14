@@ -289,7 +289,7 @@
       "position": 4.5
     },
     {
-      "page": "https://example.com/widgets/list?p=2",
+      "page": "https://example.com/widgets/list?page=2",
       "clicks": 212,
       "impressions": 4422,
       "ctr": 0.0479,
@@ -459,7 +459,7 @@
       "position": 3.9
     },
     {
-      "page": "https://example.com/widgets/list?p=2",
+      "page": "https://example.com/widgets/list?page=2",
       "clicks": 198,
       "impressions": 4140,
       "ctr": 0.0478,

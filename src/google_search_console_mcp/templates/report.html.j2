@@ -92,7 +92,8 @@ td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: t
 .badge.high { background: var(--danger); color: #fff; }
 .badge.medium { background: var(--warning); color: #fff; }
 .badge.low { background: var(--primary); color: #fff; }
-.issue h4 { margin: 0 0 .4rem; font-size: 1.05rem; }
+.issue h3 { margin: 0 0 .4rem; font-size: 1.05rem; color: var(--text); }
+.roadmap h3 { margin: 0; }
 .issue p { margin: 0 0 .75rem; color: var(--text-muted); }
 ul.strategy { margin: .5rem 0 0; padding-left: 1.15rem; color: var(--text-muted); font-size: .9rem; }
 ul.strategy li { margin-bottom: .3rem; }
@@ -106,7 +107,10 @@ ul.strategy li { margin-bottom: .3rem; }
 .roadmap ol { margin: .5rem 0 0; padding-left: 1.15rem; font-size: .9rem; color: var(--text-muted); }
 .roadmap li { margin-bottom: .4rem; }
 .empty { color: var(--text-light); font-style: italic; font-size: .9rem; }
-.skipped-note { border-left: 4px solid #d97706; margin-bottom: 1.5rem; }
+.skipped-note { border-left: 4px solid var(--warning); margin-bottom: 1.5rem; }
+details.note { margin-top: .75rem; }
+details.note table { font-size: .8rem; }
+.curve td, .curve th { padding: .3rem .5rem; }
 .skipped-note ul { margin: .5rem 0 0 1.2rem; padding: 0; }
 .note { font-size: .8rem; color: var(--text-light); }
 footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--border); font-size: .8rem; color: var(--text-light); }
@@ -162,8 +166,18 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   </div>
 
   <div class="grid-2" style="margin-top:1rem">
-    <div class="chart-box"><canvas id="trendChart"></canvas></div>
-    <div class="chart-box"><canvas id="deviceChart"></canvas></div>
+    <div class="chart-box">
+      <canvas id="trendChart" role="img" aria-label="{{ t('kpi.clicks') }} / {{ t('kpi.impressions') }}, {{ data.date_from }} – {{ data.date_to }}"></canvas>
+      {% if data.trend %}
+      <details class="note"><summary>{{ t('kpi.clicks') }} / {{ t('kpi.impressions') }}</summary>
+        <table><thead><tr><th scope="col">{{ t('columns.date') }}</th><th scope="col" class="num">{{ t('columns.clicks') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th></tr></thead>
+        <tbody>{% for row in data.trend %}<tr><td>{{ row.date }}</td><td class="num">{{ row.clicks|num }}</td><td class="num">{{ row.impressions|num }}</td></tr>{% endfor %}</tbody></table>
+      </details>
+      {% endif %}
+    </div>
+    <div class="chart-box">
+      <canvas id="deviceChart" role="img" aria-label="{{ t('kpi.clicks') }}: {% for row in data.devices %}{{ row.device }} {{ row.clicks|num }}{% if not loop.last %}, {% endif %}{% endfor %}"></canvas>
+    </div>
   </div>
 
   <div class="card">
@@ -171,25 +185,31 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
     <ul class="strategy">
       {% set trend = strategy.executive.trend_pct %}
       {% if trend is none %}
-        <li>{{ t('executive.trend_flat') }}</li>
+        <li>{{ t('executive.trend_flat', baseline=baseline) }}</li>
       {% elif trend >= 1 %}
-        <li>{{ t('executive.trend_up', pct=trend|abs|num(1)) }}</li>
+        <li>{{ t('executive.trend_up', pct=trend|abs|num(1), baseline=baseline) }}</li>
       {% elif trend <= -1 %}
-        <li>{{ t('executive.trend_down', pct=trend|abs|num(1)) }}</li>
+        <li>{{ t('executive.trend_down', pct=trend|abs|num(1), baseline=baseline) }}</li>
       {% else %}
-        <li>{{ t('executive.trend_flat') }}</li>
+        <li>{{ t('executive.trend_flat', baseline=baseline) }}</li>
       {% endif %}
+      {% if strategy.executive.brand_basis == 'all_queries' and strategy.executive.anonymized_pct %}
+      <li>{{ t('executive.brand_share_anonymized', pct=strategy.executive.brand_pct|num(1), non_brand_pct=strategy.executive.non_brand_pct|num(1), anonymized_pct=strategy.executive.anonymized_pct|num(1)) }}</li>
+      {% elif strategy.executive.brand_basis == 'all_queries' %}
       <li>{{ t('executive.brand_share', pct=strategy.executive.brand_pct|num(1), non_brand_pct=strategy.executive.non_brand_pct|num(1)) }}</li>
+      {% else %}
+      <li>{{ t('executive.brand_share_top', n=data.queries|length|num, pct=strategy.executive.brand_pct|num(1), non_brand_pct=strategy.executive.non_brand_pct|num(1)) }}</li>
+      {% endif %}
       <li>{{ t('executive.issue_count', high=strategy.executive.high_issues, medium=strategy.executive.medium_issues) }}</li>
       {% if strategy.executive.total_uplift %}
-      <li>{{ t('executive.uplift', clicks=strategy.executive.total_uplift|num) }}</li>
+      <li>{% if strategy.executive.uplift_queries == 1 %}{{ t('executive.uplift_one', clicks=strategy.executive.total_uplift|num) }}{% else %}{{ t('executive.uplift', n=strategy.executive.uplift_queries, clicks=strategy.executive.total_uplift|num) }}{% endif %}</li>
       {% endif %}
       {% if strategy.executive.quick_win_count %}
       <li>{{ t('executive.quick_win_count', n=strategy.executive.quick_win_count) }}</li>
       {% endif %}
     </ul>
     {% if strategy.brand.brand_terms_source == 'domain_label' %}
-    <p class="note">{{ t('report.data_note', site=data.site_url) }}</p>
+    <p class="note">{{ t('method.brand_guess', terms=strategy.brand.brand_terms|join(', ')) }}</p>
     {% endif %}
   </div>
 </section>
@@ -207,7 +227,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
       <span class="badge {{ issue.severity }}">{{ issue.severity_label }}</span>
       <span class="badge">{{ issue.category_label }}</span>
     </div>
-    <h4>{{ issue.title }}</h4>
+    <h3>{{ issue.title }}</h3>
     <p>{{ issue.description }}</p>
     {% if issue.examples.rows %}
     <div class="table-scroll">
@@ -216,17 +236,17 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
         <thead>
           <tr>
           {% if kind == 'pages' %}
-            <th>{{ t('columns.url') }}</th><th class="num">{{ t('columns.clicks') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.position') }}</th>
+            <th scope="col">{{ t('columns.url') }}</th><th scope="col" class="num">{{ t('columns.clicks') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.position') }}</th>
           {% elif kind == 'queries' %}
-            <th>{{ t('columns.query') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.ctr') }}</th><th class="num">{{ t('columns.position') }}</th>
+            <th scope="col">{{ t('columns.query') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.ctr') }}</th><th scope="col" class="num">{{ t('columns.position') }}</th>
           {% elif kind == 'hosts' %}
-            <th>{{ t('columns.host') }}</th><th class="num">{{ t('columns.clicks') }}</th>
+            <th scope="col">{{ t('columns.host') }}</th><th scope="col" class="num">{{ t('columns.clicks') }}</th>
           {% elif kind == 'sitemaps' %}
-            <th>{{ t('columns.path') }}</th><th class="num">{{ t('columns.warnings') }}</th><th class="num">{{ t('columns.errors') }}</th><th class="num">{{ t('columns.last_downloaded') }}</th>
+            <th scope="col">{{ t('columns.path') }}</th><th scope="col" class="num">{{ t('columns.warnings') }}</th><th scope="col" class="num">{{ t('columns.errors') }}</th><th scope="col" class="num">{{ t('columns.last_downloaded') }}</th>
           {% elif kind == 'indexing' %}
-            <th>{{ t('columns.url') }}</th><th>{{ t('columns.verdict') }}</th><th>{{ t('columns.coverage') }}</th>
+            <th scope="col">{{ t('columns.url') }}</th><th scope="col">{{ t('columns.verdict') }}</th><th scope="col">{{ t('columns.coverage') }}</th>
           {% elif kind == 'metric' %}
-            <th>{{ t('columns.metric') }}</th><th class="num">{{ t('columns.previous') }}</th><th class="num">{{ t('columns.current') }}</th><th class="num">{{ t('columns.delta') }}</th>
+            <th scope="col">{{ t('columns.metric') }}</th><th scope="col" class="num">{{ t('columns.previous') }}</th><th scope="col" class="num">{{ t('columns.current') }}</th><th scope="col" class="num">{{ t('columns.delta') }}</th>
           {% endif %}
           </tr>
         </thead>
@@ -242,7 +262,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
           {% elif kind == 'sitemaps' %}
             <td><code>{{ row.path|shorten_url }}</code></td><td class="num">{{ row.warnings|num }}</td><td class="num">{{ row.errors|num }}</td><td class="num">{{ row.last_downloaded }}</td>
           {% elif kind == 'indexing' %}
-            <td class="url-cell">{{ row.url|shorten_url }}</td><td><strong>{{ row.verdict }}</strong></td><td>{{ row.coverage }}</td>
+            <td class="url-cell">{{ row.url|shorten_url }}</td><td><strong>{{ t('verdict.' ~ row.verdict) }}</strong></td><td>{{ row.coverage }}</td>
           {% elif kind == 'metric' %}
             <td>{{ t('columns.' ~ row.metric) }}</td><td class="num">{{ row.previous|num }}</td><td class="num">{{ row.current|num }}</td><td class="num"><strong>{{ row.delta|signed_pct }}</strong></td>
           {% endif %}
@@ -268,7 +288,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   <div class="card table-scroll">
     {% if data.queries %}
     <table>
-      <thead><tr><th>{{ t('columns.query') }}</th><th class="num">{{ t('columns.clicks') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.ctr') }}</th><th class="num">{{ t('columns.position') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.query') }}</th><th scope="col" class="num">{{ t('columns.clicks') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.ctr') }}</th><th scope="col" class="num">{{ t('columns.position') }}</th></tr></thead>
       <tbody>
       {% for row in data.queries[:30] %}
         <tr><td>{{ row.query }}</td><td class="num">{{ row.clicks|num }}</td><td class="num">{{ row.impressions|num }}</td><td class="num">{{ row.ctr|ctr }}</td><td class="num">{{ row.position|pos }}</td></tr>
@@ -286,7 +306,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   <div class="card table-scroll">
     {% if data.pages %}
     <table>
-      <thead><tr><th>{{ t('columns.page') }}</th><th class="num">{{ t('columns.clicks') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.ctr') }}</th><th class="num">{{ t('columns.position') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.page') }}</th><th scope="col" class="num">{{ t('columns.clicks') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.ctr') }}</th><th scope="col" class="num">{{ t('columns.position') }}</th></tr></thead>
       <tbody>
       {% for row in data.pages[:30] %}
         <tr><td class="url-cell">{{ row.page|shorten_url }}</td><td class="num">{{ row.clicks|num }}</td><td class="num">{{ row.impressions|num }}</td><td class="num">{{ row.ctr|ctr }}</td><td class="num">{{ row.position|pos }}</td></tr>
@@ -304,7 +324,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   <div class="card table-scroll">
     {% if data.countries %}
     <table>
-      <thead><tr><th>{{ t('columns.country') }}</th><th class="num">{{ t('columns.clicks') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.ctr') }}</th><th class="num">{{ t('columns.position') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.country') }}</th><th scope="col" class="num">{{ t('columns.clicks') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.ctr') }}</th><th scope="col" class="num">{{ t('columns.position') }}</th></tr></thead>
       <tbody>
       {% for row in data.countries %}
         <tr><td>{{ row.country|upper }}</td><td class="num">{{ row.clicks|num }}</td><td class="num">{{ row.impressions|num }}</td><td class="num">{{ row.ctr|ctr }}</td><td class="num">{{ row.position|pos }}</td></tr>
@@ -322,7 +342,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   <div class="card table-scroll">
     {% if data.sitemaps %}
     <table>
-      <thead><tr><th>{{ t('columns.path') }}</th><th class="num">{{ t('columns.warnings') }}</th><th class="num">{{ t('columns.errors') }}</th><th class="num">{{ t('columns.last_downloaded') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.path') }}</th><th scope="col" class="num">{{ t('columns.warnings') }}</th><th scope="col" class="num">{{ t('columns.errors') }}</th><th scope="col" class="num">{{ t('columns.last_downloaded') }}</th></tr></thead>
       <tbody>
       {% for row in data.sitemaps %}
         <tr><td><code>{{ row.path|shorten_url }}</code></td><td class="num">{{ row.warnings|int|num }}</td><td class="num">{{ row.errors|int|num }}</td><td class="num">{{ row.lastDownloaded[:10] }}</td></tr>
@@ -341,10 +361,10 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   <div class="card table-scroll">
     {% if data.indexing %}
     <table>
-      <thead><tr><th>{{ t('columns.url') }}</th><th>{{ t('columns.verdict') }}</th><th>{{ t('columns.coverage') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.url') }}</th><th scope="col">{{ t('columns.verdict') }}</th><th scope="col">{{ t('columns.coverage') }}</th></tr></thead>
       <tbody>
       {% for row in data.indexing %}
-        <tr><td class="url-cell">{{ row.url|shorten_url }}</td><td><strong>{{ row.verdict }}</strong></td><td>{{ row.coverage_state }}</td></tr>
+        <tr><td class="url-cell">{{ row.url|shorten_url }}</td><td><strong>{{ t('verdict.' ~ row.verdict) }}</strong></td><td>{{ row.coverage_state }}</td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -375,7 +395,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   <div class="card table-scroll">
     {% if strategy.page_two_wins %}
     <table>
-      <thead><tr><th>{{ t('columns.query') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.position') }}</th><th class="num">{{ t('columns.current_clicks') }}</th><th class="num">{{ t('columns.potential_clicks') }}</th><th class="num">{{ t('columns.uplift') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.query') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.position') }}</th><th scope="col" class="num">{{ t('columns.current_clicks') }}</th><th scope="col" class="num">{{ t('columns.potential_clicks') }}</th><th scope="col" class="num">{{ t('columns.uplift') }}</th></tr></thead>
       <tbody>
       {% for row in strategy.page_two_wins %}
         <tr><td>{{ row.query }}</td><td class="num">{{ row.impressions|num }}</td><td class="num">{{ row.position|pos }}</td><td class="num">{{ row.clicks|num }}</td><td class="num">{{ row.potential_clicks|num }}</td><td class="num"><strong>+{{ row.uplift|num }}</strong></td></tr>
@@ -389,7 +409,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   <div class="card table-scroll">
     {% if strategy.ctr_gaps %}
     <table>
-      <thead><tr><th>{{ t('columns.page') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.ctr') }}</th><th class="num">{{ t('columns.expected_ctr') }}</th><th class="num">{{ t('columns.position') }}</th><th class="num">{{ t('columns.uplift') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.page') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.ctr') }}</th><th scope="col" class="num">{{ t('columns.expected_ctr') }}</th><th scope="col" class="num">{{ t('columns.position') }}</th><th scope="col" class="num">{{ t('columns.uplift') }}</th></tr></thead>
       <tbody>
       {% for row in strategy.ctr_gaps %}
         <tr><td class="url-cell">{{ row.page|shorten_url }}</td><td class="num">{{ row.impressions|num }}</td><td class="num">{{ row.ctr|ctr }}</td><td class="num">{{ row.expected_ctr|ctr }}</td><td class="num">{{ row.position|pos }}</td><td class="num"><strong>+{{ row.uplift|num }}</strong></td></tr>
@@ -400,10 +420,10 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   </div>
 
   {% if strategy.traffic_drops %}
-  <h3>{{ t('sections.issues') }} — {{ t('columns.diagnosis') }}</h3>
+  <h3>{{ t('sections.traffic_drops') }}</h3>
   <div class="card table-scroll">
     <table>
-      <thead><tr><th>{{ t('columns.page') }}</th><th class="num">{{ t('columns.previous') }}</th><th class="num">{{ t('columns.current') }}</th><th class="num">{{ t('columns.delta') }}</th><th>{{ t('columns.diagnosis') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.page') }}</th><th scope="col" class="num">{{ t('columns.previous') }}</th><th scope="col" class="num">{{ t('columns.current') }}</th><th scope="col" class="num">{{ t('columns.delta') }}</th><th scope="col">{{ t('columns.diagnosis') }}</th></tr></thead>
       <tbody>
       {% for row in strategy.traffic_drops %}
         <tr><td class="url-cell">{{ row.page|shorten_url }}</td><td class="num">{{ row.prev_clicks|num }}</td><td class="num">{{ row.clicks|num }}</td><td class="num"><strong>{{ row.clicks_delta_pct|signed_pct }}</strong></td><td>{{ t('diagnosis.' ~ row.diagnosis) }}</td></tr>
@@ -413,11 +433,28 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   </div>
   {% endif %}
 
-  {% if strategy.themes %}
+    {% if truncated.pages %}<p class="note">{{ t('truncated.pages', n=page_rows|num) }}</p>{% endif %}
+
+  {% if strategy.content_decay %}
+  <h3>{{ t('sections.content_decay') }}</h3>
+  <div class="card table-scroll">
+    <table>
+      <thead><tr><th scope="col">{{ t('columns.page') }}</th><th scope="col" class="num">{{ t('columns.peak_month') }}</th><th scope="col" class="num">{{ t('columns.peak_clicks') }}</th><th scope="col" class="num">{{ t('columns.last_month') }}</th><th scope="col" class="num">{{ t('columns.last_clicks') }}</th><th scope="col" class="num">{{ t('columns.delta') }}</th></tr></thead>
+      <tbody>
+      {% for row in strategy.content_decay %}
+        <tr><td class="url-cell">{{ row.page|shorten_url }}</td><td class="num">{{ row.peak_month }}</td><td class="num">{{ row.peak_clicks|num }}</td><td class="num">{{ row.last_month }}</td><td class="num">{{ row.last_clicks|num }}</td><td class="num"><strong>-{{ row.decay_pct|num(1) }}%</strong></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="note">{{ t('method.decay') }}</p>
+  </div>
+  {% endif %}
+
+{% if strategy.themes %}
   <h3>{{ t('sections.themes') }}</h3>
   <div class="card table-scroll">
     <table>
-      <thead><tr><th>{{ t('columns.theme') }}</th><th class="num">{{ t('columns.clicks') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.query_count') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.theme') }}</th><th scope="col" class="num">{{ t('columns.clicks') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.query_count') }}</th></tr></thead>
       <tbody>
       {% for row in strategy.themes %}
         <tr><td>{{ row.theme }}</td><td class="num">{{ row.clicks|num }}</td><td class="num">{{ row.impressions|num }}</td><td class="num">{{ row.query_count|num }}</td></tr>
@@ -435,7 +472,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
     <p class="note">{{ group.page_count }} — {{ group.clicks|num }} {{ t('columns.clicks')|lower }}</p>
     <div class="table-scroll">
       <table>
-        <thead><tr><th>{{ t('columns.page') }}</th><th class="num">{{ t('columns.clicks') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.position') }}</th></tr></thead>
+        <thead><tr><th scope="col">{{ t('columns.page') }}</th><th scope="col" class="num">{{ t('columns.clicks') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.position') }}</th></tr></thead>
         <tbody>
         {% for page in group.pages %}
           <tr><td class="url-cell">{{ page.page|shorten_url }}</td><td class="num">{{ page.clicks|num }}</td><td class="num">{{ page.impressions|num }}</td><td class="num">{{ page.position|pos }}</td></tr>
@@ -451,7 +488,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   <h3>{{ t('sections.questions') }}</h3>
   <div class="card table-scroll">
     <table>
-      <thead><tr><th>{{ t('columns.query') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.ctr') }}</th><th class="num">{{ t('columns.position') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.query') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.ctr') }}</th><th scope="col" class="num">{{ t('columns.position') }}</th></tr></thead>
       <tbody>
       {% for row in strategy.questions %}
         <tr><td>{{ row.query }}</td><td class="num">{{ row.impressions|num }}</td><td class="num">{{ row.ctr|ctr }}</td><td class="num">{{ row.position|pos }}</td></tr>
@@ -480,7 +517,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   <h3>{{ t('sections.geo') }}</h3>
   <div class="card table-scroll">
     <table>
-      <thead><tr><th>{{ t('columns.country') }}</th><th class="num">{{ t('columns.clicks') }}</th><th class="num">{{ t('columns.impressions') }}</th><th class="num">{{ t('columns.ctr') }}</th><th class="num">{{ t('columns.position') }}</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('columns.country') }}</th><th scope="col" class="num">{{ t('columns.clicks') }}</th><th scope="col" class="num">{{ t('columns.impressions') }}</th><th scope="col" class="num">{{ t('columns.ctr') }}</th><th scope="col" class="num">{{ t('columns.position') }}</th></tr></thead>
       <tbody>
       {% for row in strategy.geo_opportunities %}
         <tr><td>{{ row.country }}</td><td class="num">{{ row.clicks|num }}</td><td class="num">{{ row.impressions|num }}</td><td class="num">{{ row.ctr|ctr }}</td><td class="num">{{ row.position|pos }}</td></tr>
@@ -498,12 +535,32 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--bor
   <div class="roadmap">
     {% for horizon in ['30', '60', '90'] %}
     <div class="card">
-      <h4>{{ t('roadmap.' ~ horizon) }}</h4>
+      <h3>{{ t('roadmap.' ~ horizon) }}</h3>
       <ol>
         {% for step in roadmap.get(horizon, []) %}<li>{{ step }}</li>{% endfor %}
       </ol>
     </div>
     {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if 'method' in sections %}
+<section>
+  <h2>{{ t('sections.method') }}</h2>
+  <div class="card">
+    <p>{{ t('method.comparison_' ~ data.get('compare', 'previous'), from=data.date_from, to=data.date_to, prev_from=data.prev_from, prev_to=data.prev_to) }}</p>
+    <p>{{ t('method.thresholds', q_impr=strategy.thresholds.min_impressions|num, p_impr=strategy.thresholds_pages.min_impressions|num, q_high=strategy.thresholds.high_visibility_impressions|num, p_high=strategy.thresholds_pages.high_visibility_impressions|num) }}</p>
+    {% if strategy.brand.brand_terms %}
+    <p>{% if strategy.brand.brand_terms_source == 'domain_label' %}{{ t('method.brand_guess', terms=strategy.brand.brand_terms|join(', ')) }}{% else %}{{ t('method.brand', terms=strategy.brand.brand_terms|join(', ')) }}{% endif %}</p>
+    {% endif %}
+    <p>{{ t('method.ctr_gap') }}</p>
+    <div class="table-scroll">
+      <table class="curve">
+        <thead><tr><th scope="row">{{ t('method.position') }}</th>{% for position in strategy.ctr_curve|dictsort %}<th scope="col" class="num">{{ position[0] }}</th>{% endfor %}</tr></thead>
+        <tbody><tr><th scope="row">{{ t('method.expected') }}</th>{% for position in strategy.ctr_curve|dictsort %}<td class="num">{{ position[1]|ctr }}</td>{% endfor %}</tr></tbody>
+      </table>
+    </div>
   </div>
 </section>
 {% endif %}

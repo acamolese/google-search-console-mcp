@@ -34,7 +34,10 @@
     "questions": "Opportunità featured snippet",
     "devices": "Divario mobile e desktop",
     "geo": "Opportunità geografiche",
-    "roadmap": "Roadmap 30 / 60 / 90 giorni"
+    "roadmap": "Roadmap 30 / 60 / 90 giorni",
+    "traffic_drops": "Pagine che hanno perso click",
+    "content_decay": "Pagine in calo costante",
+    "method": "Come leggere questo report"
   },
   "columns": {
     "query": "Query",
@@ -66,7 +69,12 @@
     "effort": "Sforzo",
     "action": "Azione",
     "diagnosis": "Causa probabile",
-    "severity": "Gravità"
+    "severity": "Gravità",
+    "date": "Data",
+    "peak_month": "Mese di picco",
+    "peak_clicks": "Click al picco",
+    "last_month": "Ultimo mese",
+    "last_clicks": "Click ultimo mese"
   },
   "severity": {
     "high": "Alta",
@@ -91,34 +99,36 @@
     "opportunity": "Opportunità"
   },
   "diagnosis": {
-    "disappeared": "La pagina ha smesso del tutto di ricevere click",
+    "disappeared": "La pagina non compare più nei risultati di ricerca",
     "ranking_loss": "La posizione media è peggiorata",
-    "demand_decline": "Meno impression a parità di posizione: è calata la domanda",
     "ctr_collapse": "Stesse impression e stessa posizione, molti meno click: lo snippet non funziona più",
-    "mixed": "Più fattori cambiati insieme"
+    "mixed": "Più fattori cambiati insieme",
+    "fewer_impressions": "Meno impression a parità di posizione: domanda in calo, oppure la pagina si posiziona per meno query"
   },
   "executive": {
     "heading": "Sintesi esecutiva",
-    "trend_up": "I click sono cresciuti del {pct}% rispetto al periodo precedente.",
-    "trend_down": "I click sono calati del {pct}% rispetto al periodo precedente.",
-    "trend_flat": "I click sono stabili rispetto al periodo precedente.",
-    "brand_share": "Il {pct}% dei click arriva da query di marca, il {non_brand_pct}% da query non-brand.",
+    "trend_up": "I click sono cresciuti del {pct}% rispetto {baseline}.",
+    "trend_down": "I click sono calati del {pct}% rispetto {baseline}.",
+    "trend_flat": "I click sono stabili rispetto {baseline}.",
+    "brand_share": "Il {pct}% di tutti i click arriva da query brand, il {non_brand_pct}% da query non-brand.",
     "issue_count": "Rilevate {high} criticità di gravità alta e {medium} di gravità media.",
-    "uplift": "Le opportunità elencate valgono un incremento stimato di +{clicks} click.",
-    "quick_win_count": "Ci sono {n} quick win pronti da avviare."
+    "uplift": "Se le prime {n} query di seconda pagina arrivassero in posizione 3, porterebbero circa +{clicks} click in un periodo come questo. È un ordine di grandezza, non una previsione.",
+    "quick_win_count": "Ci sono {n} quick win pronti da avviare.",
+    "brand_share_anonymized": "Il {pct}% di tutti i click arriva da query brand, il {non_brand_pct}% da query non-brand e il {anonymized_pct}% da query che Google non rende visibili.",
+    "brand_share_top": "Sulle prime {n} query, il {pct}% dei click è brand e il {non_brand_pct}% non-brand.",
+    "uplift_one": "Se la prima query di seconda pagina arrivasse in posizione 3, porterebbe circa +{clicks} click in un periodo come questo. È un ordine di grandezza, non una previsione."
   },
   "issue": {
     "paginated_pages": {
-      "title": "{n} pagine paginate indicizzate",
-      "title_one": "Una pagina paginata indicizzata",
-      "description": "Gli URL paginati raccolgono {clicks} click e competono con le pagine di categoria principali. Google può scegliere un canonical diverso da quello dichiarato.",
-      "description_one": "Un URL paginato raccoglie {clicks} click e compete con la pagina di categoria principale. Google può scegliere un canonical diverso da quello dichiarato.",
+      "title": "{n} pagine di elenco profonde ricevono traffico",
+      "title_one": "Una pagina di elenco profonda riceve traffico",
+      "description": "Le pagine dalla seconda in poi di un elenco raccolgono {clicks} click. Google indicizza le pagine paginate di proposito: il punto è che una pagina profonda risponde a query a cui dovrebbe rispondere la prima pagina, o una pagina dedicata.",
+      "description_one": "Una pagina dalla seconda in poi di un elenco raccoglie {clicks} click. Google indicizza le pagine paginate di proposito: il punto è che una pagina profonda risponde a query a cui dovrebbe rispondere la prima pagina, o una pagina dedicata.",
       "strategy": [
-        "Aggiungere un rel=\"canonical\" su tutti gli URL paginati che punti alla prima pagina della categoria",
-        "Verificare con URL Inspection che Google rispetti il canonical dichiarato",
-        "In alternativa usare infinite scroll con history.pushState, così l'URL principale resta invariato",
-        "Controllare che gli URL paginati non siano presenti nella sitemap XML",
-        "Se le pagine dalla seconda in poi hanno contenuti unici da posizionare, differenziarne title e description"
+        "Mantenere su ogni pagina paginata il canonical verso sé stessa: puntarle tutte alla prima pagina nasconde gli elementi che elencano",
+        "Verificare quali query arrivano sulle pagine profonde e se una pagina di categoria, di filtro o una guida dovrebbe occuparsene",
+        "Collegare i prodotti o gli articoli che attirano quelle query dalla prima pagina o da una pagina dedicata",
+        "Dare alle pagine paginate title semplici e distinti (\"Pagina 2\") perché non competano con la prima"
       ]
     },
     "http_pages": {
@@ -144,9 +154,9 @@
       ]
     },
     "low_ctr_queries": {
-      "title": "{n} query in prima pagina ma con pochissimi click",
-      "title_one": "Una query in prima pagina ma con pochissimi click",
-      "description": "Query in top 10 con un CTR sotto il {threshold}%. Il posizionamento c'è, lo snippet non converte. Poco sforzo, ritorno alto.",
+      "title": "{n} query in prima pagina ricevono molti meno click di quanto la posizione consentirebbe",
+      "title_one": "Una query in prima pagina riceve molti meno click di quanto la posizione consentirebbe",
+      "description": "Queste query sono in top 10 ma ottengono meno del 60% del CTR che la loro posizione ottiene di solito: restano sul tavolo circa {lost} click. Il posizionamento c'è, lo snippet non converte.",
       "strategy": [
         "Riscrivere il title puntando sull'elemento differenziante per questo pubblico",
         "Riscrivere la meta description con una call to action chiara, sotto i 155 caratteri",
@@ -154,7 +164,8 @@
         "Testare varianti di title che segnalino freschezza dove il tema lo giustifica",
         "Evitare title generici tipo \"Categoria | Brand\" e preferire formulazioni orientate al beneficio",
         "Monitorare il CTR settimanalmente dopo ogni modifica e iterare"
-      ]
+      ],
+      "description_one": "Questa query è in top 10 ma ottiene meno del 60% del CTR che la sua posizione ottiene di solito: restano sul tavolo circa {lost} click. Il posizionamento c'è, lo snippet non converte."
     },
     "page_two_queries": {
       "title": "{n} query in posizione 11-20 con volume reale",
@@ -170,16 +181,17 @@
       ]
     },
     "weak_high_visibility_pages": {
-      "title": "{n} pagine ad alta visibilità convertono male le impression",
-      "title_one": "Una pagina ad alta visibilità converte male le impression",
-      "description": "Pagine con molte impression e pochissimi click. O lo snippet non risponde all'intento della query, oppure la posizione è troppo bassa per essere vista.",
+      "title": "{n} pagine ad alta visibilità ricevono molti meno click di quanto la posizione consentirebbe",
+      "title_one": "Una pagina ad alta visibilità riceve molti meno click di quanto la posizione consentirebbe",
+      "description": "Pagine con molte impression in prima pagina e meno del 60% del CTR atteso: restano sul tavolo circa {lost} click. O lo snippet non risponde all'intento delle query, o i risultati arricchiti sopra prendono i click.",
       "strategy": [
         "Rivedere title e meta description pagina per pagina",
         "Verificare che il contenuto above the fold risponda all'intento di ricerca",
         "Controllare i Core Web Vitals: un LCP lento costa click da mobile",
         "Verificare se la pagina compete con un'altra pagina del sito sulla stessa query",
         "Aggiungere i dati strutturati adatti al tipo di pagina"
-      ]
+      ],
+      "description_one": "Una pagina con molte impression in prima pagina e meno del 60% del CTR atteso: restano sul tavolo circa {lost} click. O lo snippet non risponde all'intento delle query, o i risultati arricchiti sopra prendono i click."
     },
     "sitemap_problems": {
       "title": "{n} sitemap con problemi",
@@ -195,9 +207,9 @@
       ]
     },
     "indexing_problems": {
-      "title": "{n} pagine principali con problemi di indicizzazione",
-      "title_one": "Una pagina principale con problemi di indicizzazione",
-      "description": "Pagine tra le più importanti del sito che non risultano in stato PASS. Ognuna di queste è traffico a rischio.",
+      "title": "{n} pagine ispezionate non risultano indicizzate come dovrebbero",
+      "title_one": "Una pagina ispezionata non risulta indicizzata come dovrebbe",
+      "description": "Sono state ispezionate prima le pagine che hanno perso più click, poi le pagine principali. Queste non risultano indicizzate. Alcune esclusioni sono volute (noindex, pagine alternative): ognuna va verificata sul suo stato di copertura.",
       "strategy": [
         "Aprire URL Inspection per ogni pagina e leggere lo stato di copertura esatto",
         "\"Duplicate, Google chose different canonical\": verificare il canonical dichiarato e se il contenuto è davvero unico",
@@ -208,7 +220,7 @@
       ]
     },
     "traffic_drop": {
-      "title": "Click in calo del {pct}% rispetto al periodo precedente",
+      "title": "Click in calo del {pct}% rispetto {baseline}",
       "description": "I click sono passati da {previous} a {current}. Le impression sono variate del {impressions_pct}%. Va indagato prima di ogni altra voce di questo elenco.",
       "strategy": [
         "Confrontare le prime 20 query e pagine nei due periodi per isolare dove è avvenuta la perdita",
@@ -231,28 +243,28 @@
     },
     "fix_cannibalization": {
       "title": "Risolvere la cannibalizzazione tra pagine",
-      "action": "\"{query}\" è divisa su {pages} pagine. Consolidare i canonical e scegliere una sola pagina target per query."
+      "action": "\"{query}\" è divisa su {pages} pagine e nessuna la tiene saldamente. Scegliere la pagina che deve rispondere, unire o differenziare le altre e puntare i link interni su quella scelta."
     },
     "force_https": {
       "title": "Forzare HTTPS ovunque con redirect 301",
       "action": "Configurare il 301 da HTTP a HTTPS a livello server, attivare HSTS, aggiornare la sitemap e risottometterla."
     },
-    "canonicalize_pagination": {
-      "title": "Canonicalizzare le pagine paginate",
-      "action": "Aggiungere rel=canonical dagli URL paginati verso la prima pagina della categoria per consolidare l'autorità."
-    },
     "answer_questions": {
       "title": "Puntare a featured snippet e People Also Ask",
-      "action": "{n} query interrogative sono già in top 15. Aggiungere sezioni FAQ strutturate con risposte brevi di 40-60 parole e markup FAQPage.",
-      "action_one": "Una query interrogativa è già in top 15. Aggiungere una sezione FAQ strutturata con una risposta breve di 40-60 parole e markup FAQPage."
+      "action": "{n} query interrogative sono già in top 15. Rispondere a ciascuna in modo diretto nella parte alta della pagina target, in 40-60 parole, sotto un titolo che riprende la domanda.",
+      "action_one": "Una query interrogativa è già in top 15. Rispondere in modo diretto nella parte alta della pagina target, in 40-60 parole, sotto un titolo che riprende la domanda."
     },
     "reduce_brand_dependency": {
-      "title": "Ridurre la dipendenza dal traffico di marca",
-      "action": "Il {pct}% dei click arriva da query di marca. Investire in contenuti informativi di top of funnel per allargare il bacino."
+      "title": "Ridurre la dipendenza dal traffico brand",
+      "action": "Il {pct}% dei click arriva da query brand. Investire in contenuti informativi di top of funnel per allargare il bacino."
     },
     "build_topic_hub": {
       "title": "Costruire un hub di contenuti su \"{theme}\"",
       "action": "\"{theme}\" concentra {clicks} click su {queries} query. Creare una pagina pillar e un cluster di contenuti di supporto."
+    },
+    "review_pagination": {
+      "title": "Capire perché le pagine di elenco profonde si posizionano",
+      "action": "Verificare quali query arrivano sulle pagine dalla seconda in poi e dare alle più forti una pagina dedicata o un link dalla prima pagina. Ogni pagina paginata mantiene il proprio canonical."
     }
   },
   "roadmap": {
@@ -266,8 +278,12 @@
     "content_hubs": "Costruire hub di contenuti sui temi principali: {themes}",
     "expand_non_brand": "Allargare il funnel con contenuti informativi per far crescere il traffico non-brand",
     "localize": "Valutare la localizzazione per i mercati emergenti: {countries}",
-    "backlinks": "Analizzare i backlink e pianificare digital PR per far crescere l'autorità del dominio",
-    "competitors": "Analizzare i competitor per individuare i gap di contenuto da colmare"
+    "backlinks": "{n} query sono ferme in seconda pagina: analizzare il profilo backlink e pianificare digital PR per le pagine su cui arrivano",
+    "competitors": "I click sono in calo: confrontare i risultati che ora superano il sito sulle query perse",
+    "monitor": "Ripetere questo report tra 30 giorni per misurare l'effetto degli interventi",
+    "optimize_page_two_one": "Ottimizzare la pagina target per la query in posizione 11-20",
+    "fix_cannibalization_one": "Risolvere la cannibalizzazione sulla query di maggior valore",
+    "backlinks_one": "Una query è ferma in seconda pagina: analizzare il profilo backlink e pianificare digital PR per la pagina su cui arriva"
   },
   "device": {
     "mobile": "Mobile",
@@ -280,7 +296,9 @@
   "skipped": {
     "heading": "Alcune sezioni non sono state verificate",
     "sitemaps": "Le sitemap non sono state verificate: la chiamata all'API di Search Console non è riuscita. Una sezione sitemap vuota non significa che non ci siano problemi.",
-    "content_decay": "Lo storico mensile delle pagine non è stato recuperato per intero: il calo dei contenuti (content decay) non è stato verificato."
+    "content_decay": "Lo storico mensile delle pagine non è stato recuperato per intero: il calo dei contenuti (content decay) non è stato verificato.",
+    "indexing": "L'ispezione URL non è riuscita per alcune pagine: quelle pagine non sono state verificate e non sono contate tra i problemi di indicizzazione.",
+    "brand": "Non è stato possibile calcolare i totali brand e non-brand su tutte le query: la ripartizione mostrata riguarda solo le query principali."
   },
   "empty": {
     "no_issues": "Nessuna criticità ha superato le soglie per questa proprietà e questo periodo.",
@@ -345,5 +363,30 @@
     "perche",
     "quanto",
     "quali"
-  ]
+  ],
+  "compare": {
+    "previous": "al periodo precedente",
+    "year": "allo stesso periodo dell'anno scorso"
+  },
+  "verdict": {
+    "PASS": "Indicizzata",
+    "PARTIAL": "Parzialmente valida",
+    "FAIL": "Non indicizzata",
+    "NEUTRAL": "Esclusa",
+    "UNKNOWN": "Sconosciuto"
+  },
+  "truncated": {
+    "pages": "Il sito ha più pagine delle {n} lette per questo report: quelle oltre questa soglia non sono indicate come perse."
+  },
+  "method": {
+    "thresholds": "Soglie calcolate su questa proprietà: una query conta da {q_impr} impression, una pagina da {p_impr}; l'alta visibilità parte da {q_high} impression per una query e da {p_high} per una pagina.",
+    "ctr_gap": "Un risultato è sotto il CTR atteso quando ottiene meno del 60% di quello che la sua posizione ottiene di solito. La curva usata:",
+    "brand": "Termini brand: {terms}.",
+    "brand_guess": "Termini brand ricavati dal dominio ({terms}): indicando quelli reali la ripartizione diventa affidabile.",
+    "decay": "Calo costante: click in calo in ciascuno degli ultimi tre mesi completi.",
+    "position": "Posizione",
+    "expected": "CTR atteso",
+    "comparison_previous": "Periodo {from} – {to}, confrontato con il periodo precedente di pari durata: {prev_from} – {prev_to}.",
+    "comparison_year": "Periodo {from} – {to}, confrontato con lo stesso periodo dell'anno scorso: {prev_from} – {prev_to}."
+  }
 }

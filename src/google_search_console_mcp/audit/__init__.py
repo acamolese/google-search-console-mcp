@@ -48,6 +48,7 @@ async def run_audit(
     branding_path: str = "",
     inspect_top_pages: int = collect_module.DEFAULT_INSPECT_TOP_PAGES,
     thresholds: dict | None = None,
+    compare: str = "previous",
     write_file: bool = True,
     settings: Settings | None = None,
     ctx: Any = None,
@@ -59,6 +60,10 @@ async def run_audit(
     resolved_language = (language or "").strip().lower() or settings.report_language
     translator = i18n.load(resolved_language)
 
+    from ..insights import resolve_brand_terms
+
+    terms, _source = resolve_brand_terms(brand_terms or branding.get("brand_terms") or [], site_url)
+
     data = await collect_module.collect(
         gsc,
         site_url,
@@ -66,6 +71,8 @@ async def run_audit(
         date_to,
         data_state=settings.data_state,
         inspect_top_pages=inspect_top_pages,
+        brand_terms=terms,
+        compare=compare,
         ctx=ctx,
     )
 
@@ -75,8 +82,11 @@ async def run_audit(
         overrides["ctr_curve"] = branding["ctr_curve"]
     overrides.update(thresholds or {})
 
-    th = Thresholds.from_rows(data["queries"] + data["pages"], overrides)
-    issues = detect_issues(data, th)
+    # Percentiles per kind of row: a page gathers many queries, so one cut-off
+    # computed over both would be too high for queries and too low for pages.
+    th = Thresholds.from_rows(data["queries"], overrides)
+    th_pages = Thresholds.from_rows(data["pages"], overrides)
+    issues = detect_issues(data, th, th_pages)
 
     from . import strategy as strategy_module
 
@@ -84,6 +94,7 @@ async def run_audit(
         data,
         issues,
         th,
+        th_pages=th_pages,
         brand_terms=brand_terms or branding.get("brand_terms") or [],
         stopwords=sorted(translator.stopwords()),
         question_words=translator.question_words(),

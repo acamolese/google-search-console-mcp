@@ -22,6 +22,7 @@ Row = Mapping[str, Any]
 __all__ = [
     "Thresholds",
     "alerts",
+    "brand_regex",
     "brand_split",
     "cannibalization",
     "content_decay",
@@ -136,6 +137,10 @@ def ctr_gaps(
     return out[:limit]
 
 
+DOMINANT_POSITION = 3.0
+DOMINANT_CLICK_SHARE = 0.8
+
+
 def cannibalization(
     rows: Sequence[Row],
     th: Thresholds,
@@ -144,12 +149,19 @@ def cannibalization(
     min_share: float = 0.10,
     top_pages: int = 4,
     limit: int = 50,
+    brand_terms: Sequence[str] = (),
 ) -> list[dict]:
     """Queries where Google splits impressions across several pages of the site.
 
     A page that picks up a rounding error's worth of impressions is not
-    competing, so each page must hold at least `min_share` of the query.
+    competing, so each page must hold at least `min_share` of the query. Three
+    cases are not cannibalisation and are left out: brand queries (the home and
+    the contact page both ranking for the brand is expected), queries where one
+    page sits in the top three and takes most of the clicks, and queries too
+    small to matter. Size is judged on impressions, because the worst cases are
+    the ones where the split leaves every page with no clicks at all.
     """
+    brand = brand_matcher(brand_terms)
     by_query: dict[str, list[dict]] = defaultdict(list)
     for row in rows:
         by_query[row.get("query", "")].append(
@@ -164,14 +176,23 @@ def cannibalization(
 
     out = []
     for query, pages in by_query.items():
+        if brand is not None and brand(query):
+            continue
         total_impressions = sum(page["impressions"] for page in pages)
         total_clicks = sum(page["clicks"] for page in pages)
-        if total_impressions <= 0 or total_clicks < th.min_clicks:
+        if total_impressions < th.min_impressions:
             continue
         competing = [page for page in pages if page["impressions"] >= total_impressions * min_share]
         if len(competing) < min_pages:
             continue
         competing.sort(key=lambda page: page["clicks"], reverse=True)
+        leader = competing[0]
+        if (
+            total_clicks > 0
+            and 0 < leader["position"] <= DOMINANT_POSITION
+            and leader["clicks"] >= total_clicks * DOMINANT_CLICK_SHARE
+        ):
+            continue
         out.append(
             {
                 "query": query,
@@ -190,12 +211,17 @@ def cannibalization(
 # Regressions
 # ---------------------------------------------------------------------------
 
-DIAGNOSES = ("disappeared", "ranking_loss", "demand_decline", "ctr_collapse", "mixed")
+DIAGNOSES = ("disappeared", "ranking_loss", "fewer_impressions", "ctr_collapse", "mixed")
 
 
 def _diagnose(current: Row, previous: Row) -> str:
-    """Name the most likely cause of a drop from the shape of the change."""
-    if current.get("clicks", 0) == 0:
+    """Name the most likely cause of a drop from the shape of the change.
+
+    `fewer_impressions` is what the page-level data can show: impressions fell
+    while the position held. That may be lower demand, or the page losing some of
+    the queries it ranked for; telling the two apart takes the query data.
+    """
+    if current.get("impressions", 0) == 0:
         return "disappeared"
 
     position_change = current.get("position", 0) - previous.get("position", 0)
@@ -205,7 +231,7 @@ def _diagnose(current: Row, previous: Row) -> str:
     if position_change >= 1.0:
         return "ranking_loss"
     if impressions_change is not None and impressions_change <= -20 and abs(position_change) <= 1.0:
-        return "demand_decline"
+        return "fewer_impressions"
     if (
         ctr_change is not None
         and ctr_change <= -20
@@ -225,14 +251,22 @@ def traffic_drops(
     key: str = "page",
     min_drop_pct: float = 20.0,
     limit: int = 50,
+    current_complete: bool = True,
 ) -> list[dict]:
-    """Pages that lost clicks against the baseline, each with a likely cause."""
+    """Pages that lost clicks against the baseline, each with a likely cause.
+
+    When the current period was read only up to a row limit (`current_complete`
+    false), a page missing from it may simply sit below the cut: such pages are
+    left out rather than reported as disappeared.
+    """
     current = {row.get(key, ""): row for row in current_rows}
     previous = {row.get(key, ""): row for row in previous_rows}
 
     out = []
     for name, before in previous.items():
         if before.get("clicks", 0) < th.min_clicks:
+            continue
+        if name not in current and not current_complete:
             continue
         now = current.get(name, {"clicks": 0, "impressions": 0, "ctr": 0.0, "position": 0.0})
         delta_pct = _pct_change(now.get("clicks", 0), before.get("clicks", 0))
@@ -271,7 +305,7 @@ def content_decay(
     A page that halves over six months never shows a 20% drop in any single
     month-on-month comparison.
     """
-    out = []
+    out: list[dict[str, Any]] = []
     for page, series in monthly_by_page.items():
         if len(series) < consecutive_months + 1:
             continue
@@ -302,30 +336,51 @@ def content_decay(
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
+# The alerting rules are fixed on purpose: an alert has to mean the same thing on
+# every property, so the adaptive thresholds do not apply here. The tool reports
+# these values in its meta.
+ALERT_RULES = {
+    "query_min_impressions": 100,
+    "position_loss": 5,
+    "position_loss_high": 10,
+    "ctr_collapse_pct": -50,
+    "ctr_collapse_max_impressions_change_pct": 20,
+    "page_min_clicks": 20,
+    "clicks_drop_pct": -30,
+    "clicks_drop_high_pct": -50,
+}
+
 
 def alerts(
     current_queries: Sequence[Row],
     previous_queries: Sequence[Row],
     current_pages: Sequence[Row],
     previous_pages: Sequence[Row],
-    th: Thresholds,
+    th: Thresholds | None = None,
     *,
     limit: int = 50,
+    current_pages_complete: bool = True,
 ) -> list[dict]:
-    """What changed sharply enough to be worth a message today."""
+    """What changed sharply enough to be worth a message today.
+
+    `th` is accepted for a uniform signature and ignored: see ALERT_RULES. A page
+    missing from a current period that was cut at a row limit is not reported as
+    vanished, since it may only sit below the cut.
+    """
+    rules = ALERT_RULES
     out: list[dict] = []
 
     prev_q = {row.get("query", ""): row for row in previous_queries}
     for row in current_queries:
         name = row.get("query", "")
         before = prev_q.get(name)
-        if before is None or before.get("impressions", 0) < 100:
+        if before is None or before.get("impressions", 0) < rules["query_min_impressions"]:
             continue
         position_change = row.get("position", 0) - before.get("position", 0)
-        if position_change >= 5:
+        if position_change >= rules["position_loss"]:
             out.append(
                 {
-                    "severity": "high" if position_change >= 10 else "medium",
+                    "severity": "high" if position_change >= rules["position_loss_high"] else "medium",
                     "type": "position_loss",
                     "entity": name,
                     "before": before.get("position", 0),
@@ -338,9 +393,9 @@ def alerts(
         impressions_change = _pct_change(row.get("impressions", 0), before.get("impressions", 0))
         if (
             ctr_change is not None
-            and ctr_change <= -50
+            and ctr_change <= rules["ctr_collapse_pct"]
             and impressions_change is not None
-            and abs(impressions_change) <= 20
+            and abs(impressions_change) <= rules["ctr_collapse_max_impressions_change_pct"]
         ):
             out.append(
                 {
@@ -355,10 +410,12 @@ def alerts(
 
     current_p = {row.get("page", ""): row for row in current_pages}
     for name, before in {row.get("page", ""): row for row in previous_pages}.items():
-        if before.get("clicks", 0) < 20:
+        if before.get("clicks", 0) < rules["page_min_clicks"]:
             continue
         now = current_p.get(name)
-        if now is None or now.get("clicks", 0) == 0:
+        if now is None and not current_pages_complete:
+            continue
+        if now is None or now.get("impressions", 0) == 0:
             out.append(
                 {
                     "severity": "high",
@@ -371,10 +428,10 @@ def alerts(
             )
             continue
         delta = _pct_change(now.get("clicks", 0), before.get("clicks", 0))
-        if delta is not None and delta <= -30:
+        if delta is not None and delta <= rules["clicks_drop_pct"]:
             out.append(
                 {
-                    "severity": "high" if delta <= -50 else "medium",
+                    "severity": "high" if delta <= rules["clicks_drop_high_pct"] else "medium",
                     "type": "clicks_drop",
                     "entity": name,
                     "before": before.get("clicks", 0),
@@ -404,6 +461,50 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", "", text.lower())
 
 
+def _term_pattern(term: str) -> str:
+    """A brand term as a pattern that tolerates spaces inside it.
+
+    "exampleco" also matches "example co", which users type all the time.
+    """
+    letters = [re.escape(char) for char in _normalize(term)]
+    return r"\s*".join(letters)
+
+
+def brand_matcher(brand_terms: Sequence[str]):
+    """A predicate telling brand queries apart, or None without terms.
+
+    Terms match whole words only: a short brand like "nova" must not claim
+    "innovazione", and "arte" must not claim "partenza".
+    """
+    patterns = [_term_pattern(t) for t in brand_terms if t and t.strip()]
+    if not patterns:
+        return None
+    compiled = re.compile(r"(?<!\w)(?:" + "|".join(patterns) + r")(?!\w)", re.IGNORECASE)
+    return lambda text: bool(compiled.search(str(text)))
+
+
+def brand_regex(brand_terms: Sequence[str]) -> str | None:
+    """The same rule as `brand_matcher`, written for the API's RE2 filter.
+
+    RE2 has no lookbehind, so the word edges are spelled as start, end or a
+    non-word character.
+    """
+    patterns = [_term_pattern(t) for t in brand_terms if t and t.strip()]
+    if not patterns:
+        return None
+    return r"(?i)(^|\W)(" + "|".join(patterns) + r")(\W|$)"
+
+
+def resolve_brand_terms(brand_terms: Sequence[str] | None, site_url: str = "") -> tuple[list[str], str]:
+    """The terms to use and where they came from: `explicit`, `domain_label` or `none`."""
+    terms = [t for t in (brand_terms or []) if t and t.strip()]
+    if terms:
+        return terms, "explicit"
+    if site_url:
+        return [domain_label(site_url)], "domain_label"
+    return [], "none"
+
+
 def brand_split(
     rows: Sequence[Row],
     brand_terms: Sequence[str] | None = None,
@@ -416,20 +517,17 @@ def brand_split(
     holding company, a made-up name), so the result says where the terms came
     from and the caller can pass real ones.
     """
-    terms = [t for t in (brand_terms or []) if t.strip()]
-    source = "explicit"
-    if not terms and site_url:
-        terms = [domain_label(site_url)]
-        source = "domain_label"
-    normalized = [_normalize(t) for t in terms if t.strip()]
+    terms, source = resolve_brand_terms(brand_terms, site_url)
+    matcher = brand_matcher(terms)
+    normalized = terms if matcher is not None else []
 
     brand = {"clicks": 0, "impressions": 0, "queries": 0}
     non_brand = {"clicks": 0, "impressions": 0, "queries": 0}
     non_brand_rows = []
 
     for row in rows:
-        text = _normalize(str(row.get("query", "")))
-        bucket = brand if any(term and term in text for term in normalized) else non_brand
+        is_brand = matcher is not None and matcher(row.get("query", ""))
+        bucket = brand if is_brand else non_brand
         bucket["clicks"] += row.get("clicks", 0)
         bucket["impressions"] += row.get("impressions", 0)
         bucket["queries"] += 1
@@ -466,12 +564,15 @@ def themes(
     """
     stop = {s.lower() for s in stopwords}
     brand = {_normalize(t) for t in brand_terms if t}
+    is_brand = brand_matcher(brand_terms)
     clicks: Counter[str] = Counter()
     impressions: Counter[str] = Counter()
     queries: dict[str, set[str]] = defaultdict(set)
 
     for row in rows:
         text = str(row.get("query", "")).lower()
+        if is_brand is not None and is_brand(text):
+            continue
         for word in WORD_PATTERN.findall(text):
             if word in stop or word in brand:
                 continue

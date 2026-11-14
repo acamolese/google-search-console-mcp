@@ -4,9 +4,114 @@ All notable changes to `mcp-google-search-console` are documented in this file. 
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [4.0.0] - 2026-11-14
+
+4.0 is about trust. Every number the server reports now says what it is based on,
+and nothing incomplete is presented as a finding: windows hold whole days,
+truncated reads and skipped sections are declared, and the rules that produced
+false alarms on real properties have been corrected.
+
+### Breaking changes
+
+- **Comparison windows end on the last day with final data.** When no end date
+  is given, `gsc_performance_overview` (with a comparison), `gsc_compare_periods`,
+  `gsc_traffic_drops`, `gsc_alerts`, `gsc_portfolio` and `gsc_audit` anchor rolling
+  windows to the last day Search Console has final data for, usually three or four
+  days ago, and report it as `data_through`. On a real property a 7-day window
+  ending today held about five and a half days of data and started 15-20% down.
+  `gsc_query` is unchanged and still matches the Search Console UI. Pass `date_to`
+  to keep the old behaviour.
+- **`gsc_content_decay` compares complete calendar months only.** The month in
+  progress is left out (`last_month` and `partial_month_excluded` in the meta);
+  half a month next to whole months made almost every page look in decline. The
+  audit does the same.
+- **The traffic-drop diagnosis `demand_decline` is now `fewer_impressions`.** Page
+  data shows fewer impressions at a stable position; it cannot tell lower demand
+  from a page that ranks for fewer queries. `disappeared` now means the page has
+  no impressions at all, not just no clicks.
+- **Stricter parameters.** A filter without `dimension` (it used to filter on
+  `query`), a filter on `date` or `hour`, `filter_group_type="or"`, an unknown
+  `thresholds` key and `dimension=date|hour` in `gsc_compare_periods` are refused
+  with a message instead of failing silently or with a 400 from Google.
+- **A partial `ctr_curve` is merged with the default** instead of replacing it,
+  so overriding positions 1-3 no longer drops positions 4-10 to 1.5%.
+- **`gsc_alerts` no longer takes `thresholds`.** Its rules are fixed so an alert
+  means the same thing on every property; the meta lists them under `rules`.
+- **Audit summary.** `brand.brand_clicks_pct` is replaced by `brand_pct`,
+  `non_brand_pct`, `anonymized_pct` and `basis`; the quick win
+  `canonicalize_pagination` is replaced by `review_pagination`.
+- **Meta values with spaces are quoted** in the TSV header line, so a filter
+  expression or a warning no longer breaks `key=value` parsing.
+
+### Added
+
+- `gsc_brand_split`: brand, non-brand and undisclosed clicks month by month,
+  computed over every query with server-side regex filters, so no row limit
+  applies. Complete months only.
+- `compare="year"` on `gsc_performance_overview`, `gsc_compare_periods`,
+  `gsc_traffic_drops`, `gsc_alerts` and `gsc_audit`. Whole months compare with the
+  same months last year; other ranges move back 364 days so weekdays line up.
+- `filters` and `type` on `gsc_quick_wins`, `gsc_ctr_gaps`, `gsc_cannibalization`,
+  `gsc_traffic_drops`, `gsc_content_decay`, `gsc_alerts`, `gsc_compare_periods` and
+  `gsc_performance_overview`, with the same syntax as `gsc_query`.
+- `brand_terms` on `gsc_cannibalization`.
+- `baseline_warning` when a baseline starts before the 16 months Search Console
+  keeps, instead of a half-empty baseline reading as a collapse.
+- In the audit: brand totals over every query, a "Pages in steady decline"
+  section, a "How to read this report" section (comparison, thresholds, brand
+  terms, the CTR curve), translated inspection verdicts, a data table behind the
+  trend chart, and `content_decay_top5`, `compare` and `truncated` in the summary.
+- `mypy` runs in CI, and the release workflow refuses a tag that does not match
+  the version every manifest declares.
+
 ### Fixed
 
-- `gsc_audit` no longer turns a failed optional call into a clean-looking empty section. When the sitemaps call or the month-by-month page history fails (403, quota, transient 5xx), the dataset and the summary returned to the client carry `skipped_sections` (section, label, status, error), and the HTML report shows a warning at the top and "not checked" in place of "no data" in the sitemaps section. Reported in #2.
+- **Truncation is declared.** Analysis tools report `truncated` in the meta, and a
+  page missing from a current period read only up to its row limit is no longer
+  reported as disappeared by `gsc_traffic_drops`, `gsc_alerts` or the audit.
+  `gsc_compare_periods` flags each side; `gsc_portfolio` reports `total_properties`.
+- **Failed URL Inspections are no longer indexing problems.** In the audit they
+  are listed in `skipped_sections` (with how many pages went unchecked) and the raw
+  error no longer reaches the client's table. `NEUTRAL` and `PARTIAL` verdicts are
+  a medium finding; only `FAIL` is high.
+- **The audit inspects the pages that lost the most clicks first**, then the top
+  pages, which are indexed almost by definition.
+- **Pagination rule.** It recognised only `?p=`, which is WordPress's default post
+  permalink, rated it high and advised a canonical to page one, which Google
+  advises against. It now recognises `page`, `paged`, `pg` and `/page/N/` (and `p`
+  only when the same path ranks without it), is a low, informational finding, and
+  advises self-referencing canonicals.
+- **Brand terms match whole words.** A short brand such as "nova" no longer claims
+  "innovazione", and "arte" no longer claims "partenza". Spaces inside a term are
+  still tolerated.
+- **Cannibalisation** leaves out brand queries and queries where one page sits in
+  the top three with most of the clicks, and judges size on impressions, so a split
+  that leaves every page without clicks is no longer filtered out.
+- **One definition of a low CTR.** The two CTR issues use the expected-CTR curve,
+  like the CTR-gap section, instead of fixed 2% and 1.5% ceilings.
+- **Thresholds per kind of row.** The audit computes them separately on queries and
+  on pages, and reads 5,000 queries and pages (25,000 pairs), like the tools.
+- **The estimated uplift no longer double counts.** It sums the top 10 page-two
+  opportunities and says so, instead of adding query and page opportunities for the
+  same clicks.
+- **`gsc_alerts` and `gsc_content_decay` report the cut-offs they actually apply**
+  instead of adaptive thresholds they ignored.
+- **Report copy.** No FAQPage markup advice, roadmap steps for backlinks and
+  competitors only when the data points there, content hubs only for themes with at
+  least ten queries, a proper title for the lost-pages table, and "brand" instead of
+  "di marca" in Italian.
+- **Accessibility.** Charts have a text alternative, table headers carry `scope`,
+  headings no longer skip a level, and the default light text and warning colours
+  pass WCAG AA contrast.
+- **Client.** A `Retry-After` longer than 60 seconds fails fast with a hint instead
+  of blocking the tool, and the `cache` meta covers every request of the call
+  (`hit`, `miss` or `mixed`) instead of the last one.
+- The trend chart sorts its rows by date instead of relying on the API's order.
+- `gsc_audit` no longer turns a failed optional call into a clean-looking empty
+  section: sitemaps, page history and brand totals are listed in
+  `skipped_sections` and marked "not checked" in the report. Reported in #2.
 
 ## [3.0.2] - 2026-11-13
 

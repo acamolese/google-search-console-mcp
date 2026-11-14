@@ -83,13 +83,24 @@ def test_translations_carry_no_client_or_vertical_specifics():
 
 
 def test_translation_interpolates_parameters():
-    assert i18n.load("en").t("issue.paginated_pages.title", n=12) == "12 paginated pages are indexed"
-    assert i18n.load("it").t("issue.paginated_pages.title", n=12) == "12 pagine paginate indicizzate"
+    assert (
+        i18n.load("en").t("issue.paginated_pages.title", n=12) == "12 deep listing pages earn search traffic"
+    )
+    assert (
+        i18n.load("it").t("issue.paginated_pages.title", n=12)
+        == "12 pagine di elenco profonde ricevono traffico"
+    )
 
 
 def test_a_count_of_one_uses_the_singular_form():
-    assert i18n.load("en").plural("issue.paginated_pages.title", 1, n=1) == "One paginated page is indexed"
-    assert i18n.load("it").plural("issue.paginated_pages.title", 1, n=1) == "Una pagina paginata indicizzata"
+    assert (
+        i18n.load("en").plural("issue.paginated_pages.title", 1, n=1)
+        == "One deep listing page earns search traffic"
+    )
+    assert (
+        i18n.load("it").plural("issue.paginated_pages.title", 1, n=1)
+        == "Una pagina di elenco profonda riceve traffico"
+    )
 
 
 def test_a_count_other_than_one_uses_the_plural_form():

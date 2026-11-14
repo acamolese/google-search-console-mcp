@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/mcp-google-search-console)](https://pypi.org/project/mcp-google-search-console/)
 [![Licenza: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Diciassette tool in sola lettura sull'API di Google Search Console, più un report
+Diciotto tool in sola lettura sull'API di Google Search Console, più un report
 di audit HTML deterministico e white-label che un'agenzia può firmare con il
 proprio marchio e consegnare al cliente, in italiano o in inglese.
 
@@ -21,6 +21,40 @@ credenziali:
 ```bash
 python scripts/render_sample_report.py --lang it --open
 ```
+
+## Novità della 4.0
+
+La 4.0 riguarda l'affidabilità: ogni numero che il server restituisce dichiara su
+cosa si basa, e nessun dato incompleto viene presentato come un risultato.
+
+- **Confronti su giorni interi.** Gli ultimi giorni di Search Console restano
+  parziali per un po', quindi una finestra di 7 giorni che finiva oggi partiva con
+  un calo artificiale del 15-20% sulla settimana prima. I tool di confronto ora
+  chiudono le finestre mobili sull'ultimo giorno con dati definitivi e lo
+  riportano come `data_through`.
+- **Anno su anno.** `compare="year"` su overview, confronto tra periodi, cali di
+  traffico, alert e audit. I mesi interi si confrontano con gli stessi mesi
+  dell'anno prima; gli altri intervalli tornano indietro di 52 settimane, così i
+  giorni della settimana coincidono.
+- **Filtri ovunque.** I tool di analisi e `gsc_compare_periods` accettano gli
+  stessi `filters` e `type` di `gsc_query`: si può analizzare `/blog/`, un solo
+  paese, solo mobile o Discover.
+- **Brand e non-brand, fatti bene.** Il nuovo tool `gsc_brand_split`, e l'audit,
+  calcolano la ripartizione su tutte le query con filtri regex lato server e
+  riportano come terza quota i click che Google non rende visibili. I termini
+  brand valgono solo come parole intere.
+- **Niente più falsi allarmi.** Il content decay confronta solo mesi completi. Una
+  pagina oltre il limite di righe non viene più data per persa. Un'ispezione URL
+  fallita non è più un problema di indicizzazione. La cannibalizzazione esclude le
+  query brand e quelle che una pagina tiene saldamente.
+- **Un report più solido.** Una sola definizione di CTR basso, soglie distinte per
+  query e pagine, ispezione delle pagine che hanno perso click, una sezione sulle
+  pagine in calo costante e una su come leggere il report, verdetti tradotti,
+  colori di default più scuri, grafici e tabelle accessibili. Il consiglio sulla
+  paginazione non suggerisce più il canonical verso la prima pagina.
+
+Per chi aggiorna dalla 3.x, le modifiche incompatibili sono in cima al
+[changelog](https://github.com/acamolese/google-search-console-mcp/blob/main/CHANGELOG.md#400---2026-11-14).
 
 ## Installazione
 
@@ -149,12 +183,13 @@ sono mascherati. Esce con codice 1 quando non si risolve nessuna credenziale, ch
 | `gsc_sites` | Quali proprietà può leggere questo account, e con quale stringa esatta |
 | `gsc_site_details` | Livello di permesso e tipo di una proprietà |
 | `gsc_query` | Il report Search Analytics, con filtri, dimensioni e paginazione |
-| `gsc_performance_overview` | Il sito è in crescita o in calo rispetto al periodo precedente |
+| `gsc_performance_overview` | Il sito è in crescita o in calo rispetto al periodo precedente o all'anno prima |
 | `gsc_compare_periods` | Cosa è cambiato tra due periodi, ordinato per delta di click |
 | `gsc_quick_wins` | Query abbastanza vicine alla vetta da giustificare una spinta |
 | `gsc_ctr_gaps` | Pagine che si posizionano ma non ricevono click |
 | `gsc_cannibalization` | Query su cui più pagine del sito competono tra loro |
 | `gsc_traffic_drops` | Pagine che hanno perso click, ciascuna con una causa probabile |
+| `gsc_brand_split` | Click brand, non-brand e non visibili, mese per mese |
 | `gsc_content_decay` | Pagine che scendono mese dopo mese |
 | `gsc_alerts` | Cosa si è mosso abbastanza da meritare una segnalazione oggi |
 | `gsc_portfolio` | Tutte le proprietà a colpo d'occhio, dalla peggiore |
@@ -172,14 +207,15 @@ Tre prompt coprono i flussi che si ripetono: `gsc_weekly_report`,
 | | Qui | Server GSC MCP tipico |
 |---|---|---|
 | Report per il cliente | HTML autonomo, italiano o inglese, white-label | assente |
-| Analisi | Cannibalizzazione, gap di CTR, decay, diagnosi dei cali, lato server | righe grezze, analizzate dal modello |
+| Analisi | Cannibalizzazione, gap di CTR, decay, diagnosi dei cali, brand split, lato server | righe grezze, analizzate dal modello |
+| Trasparenza | Troncamenti, sezioni saltate e ancoraggi dichiarati in ogni risposta | buchi silenziosi |
 | Soglie | Si adattano alla dimensione della proprietà | fisse, o assenti |
 | Date | `period="last_month"`, `days=28`, risolte lato server | solo date esplicite |
-| Freschezza | `dataState=all` di default, come l'interfaccia | solo `final` |
+| Freschezza | `gsc_query` come l'interfaccia; i confronti finiscono sull'ultimo giorno con dati definitivi | finestre che finiscono su giorni parziali |
 | Autenticazione | OAuth, service account, ADC | solo OAuth |
 | Output | TSV di default, circa un terzo dei token del JSON indentato | `json.dumps(indent=2)` |
 | Errori | Il motivo di Google più cosa farci | solo lo stato HTTP |
-| Test | Oltre 280, su entrambe le major di `mcp` e tre sistemi operativi | di norma nessuno |
+| Test | Oltre 350, su entrambe le major di `mcp` e tre sistemi operativi | di norma nessuno |
 
 ## Personalizzazione del report
 

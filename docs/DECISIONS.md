@@ -21,3 +21,12 @@ One line per choice that the brief did not cover, newest last.
 | 2026-08-21 | The Docker image was not built locally during this work. | No Docker daemon was running on the machine. The `docker` CI job builds it and asserts the container answers `tools/list` over streamable HTTP. |
 | 2026-08-21 | The bundle icon is generated from `mcpb/icon.source.html` with headless Chrome. | Keeps the source of the artwork in the repository and editable, with no image-editing dependency and no third-party generation service. |
 
+| 2026-11-14 | Comparison tools anchor rolling windows to the last day with final data; `gsc_query` does not. | Measured on a real property: a 7-day window ending today held about five and a half days of data. `gsc_query` has no comparison and keeps matching the UI, which is what a user checks it against. |
+| 2026-11-14 | The anchor is one `dataState=final` query by date over the last ten days, cached like any other call. | It is the only signal the API gives for completeness, and it costs one cheap request per property. |
+| 2026-11-14 | `compare="year"` maps whole months to the same months and anything else back 364 days. | A month compares with a month; a week compares with the same weekdays, which matters more than the calendar date for traffic. |
+| 2026-11-14 | Brand totals use two server-side regex filters, and the remainder of the site total is reported as anonymised. | Google drops anonymised queries from any query-filtered request, so brand plus non-brand falls short of the total by exactly that share; the top-query slice could not show it. |
+| 2026-11-14 | Brand terms match whole words, tolerating spaces inside a term. | Substring matching claimed unrelated words for short brands; users still type "example co" for "exampleco". |
+| 2026-11-14 | Alert rules stay fixed and are published in the meta, instead of following the adaptive thresholds. | An alert has to mean the same thing on every property of a portfolio. |
+| 2026-11-14 | The audit's CTR issues reuse the CTR-gap rule (below 60% of the expected CTR). | Two definitions of "low CTR" in one report contradicted each other on the same rows. |
+| 2026-11-14 | The pagination rule became informational and advises self-referencing canonicals. | Google indexes paginated pages and advises against canonicalising them to page one; `?p=` alone is WordPress's post permalink. |
+| 2026-11-14 | `filter_group_type` now refuses `or`, as the 2026-08-21 decision intended. | The code accepted it and Google answered with a 400. |

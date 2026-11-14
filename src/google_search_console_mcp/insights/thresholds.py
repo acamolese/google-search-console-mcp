@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from typing import Any
 
 # Rough click-through rate by position, used to size the gap between what a page
 # earns and what its position would normally earn. Override per client via
@@ -32,6 +33,8 @@ CTR_BEYOND_FIRST_PAGE = 0.015
 MIN_IMPRESSIONS_FLOOR = 50
 MIN_CLICKS_FLOOR = 10
 HIGH_VISIBILITY_FLOOR = 500
+
+OVERRIDE_KEYS = ("min_impressions", "min_clicks", "high_visibility_impressions", "ctr_curve")
 
 
 def percentile(values: Sequence[float], p: float) -> float:
@@ -61,7 +64,7 @@ class Thresholds:
     def from_rows(
         cls,
         rows: Sequence[Mapping[str, float]],
-        overrides: Mapping[str, object] | None = None,
+        overrides: Mapping[str, Any] | None = None,
     ) -> Thresholds:
         impressions = [row.get("impressions", 0) for row in rows]
         clicks = [row.get("clicks", 0) for row in rows]
@@ -73,17 +76,27 @@ class Thresholds:
         )
         return thresholds.with_overrides(overrides)
 
-    def with_overrides(self, overrides: Mapping[str, object] | None) -> Thresholds:
+    def with_overrides(self, overrides: Mapping[str, Any] | None) -> Thresholds:
         """Caller-supplied values always win over the computed ones."""
         if not overrides:
             return self
-        changes: dict[str, object] = {}
+        unknown = sorted(set(overrides) - set(OVERRIDE_KEYS))
+        if unknown:
+            from ..errors import GSCError
+
+            raise GSCError(
+                400,
+                f"Unknown threshold {', '.join(unknown)}. Valid keys: {', '.join(OVERRIDE_KEYS)}.",
+                reason="badRequest",
+            )
+        changes: dict[str, Any] = {}
         for name in ("min_impressions", "min_clicks", "high_visibility_impressions"):
             if overrides.get(name) is not None:
-                changes[name] = int(overrides[name])  # type: ignore[arg-type]
+                changes[name] = int(overrides[name])
         curve = overrides.get("ctr_curve")
         if isinstance(curve, Mapping) and curve:
-            changes["ctr_curve"] = {int(k): float(v) for k, v in curve.items()}
+            # A partial curve adjusts the positions it names and keeps the rest.
+            changes["ctr_curve"] = {**self.ctr_curve, **{int(k): float(v) for k, v in curve.items()}}
         return replace(self, **changes) if changes else self
 
     def expected_ctr(self, position: float) -> float:

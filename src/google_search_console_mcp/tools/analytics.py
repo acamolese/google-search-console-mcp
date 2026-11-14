@@ -12,10 +12,12 @@ from ..config import Settings
 from ..formatting import columns_for, normalize_rows, render
 from ..models import Overview, Totals, build_delta, pct_change
 from ._common import (
+    Compare,
     DataState,
     DateFrom,
     DateTo,
     Days,
+    Filters,
     NoCache,
     Period,
     ResponseFormat,
@@ -24,12 +26,15 @@ from ._common import (
     base_meta,
     build_filter_groups,
     check_aggregation,
+    check_compare,
+    check_entity_dimension,
     check_format,
     check_site_url,
     check_type,
     clamp_row_limit,
     client,
     parse_dimensions,
+    resolve_window,
     tool_annotations,
     tool_errors,
 )
@@ -37,6 +42,8 @@ from ._common import (
 # Google documents the v3 body in lowerCamelCase, but the HOUR dimension and the
 # hourly data state were introduced with the newer enum spelling.
 UPPERCASE_DIMENSIONS = {"hour": "HOUR"}
+COMPARE_DIMENSIONS = ("query", "page", "country", "device", "searchAppearance")
+COMPARE_FETCH_ROWS = 5_000
 DATA_STATES = {"all": "all", "final": "final", "hourly_all": "HOURLY_ALL"}
 
 
@@ -92,6 +99,7 @@ async def totals_for(
     *,
     search_type: str = "web",
     data_state: str = "all",
+    filter_groups: list[dict] | None = None,
     no_cache: bool = False,
 ) -> Totals:
     """Site-wide totals: one query with no dimensions."""
@@ -103,6 +111,7 @@ async def totals_for(
         row_limit=1,
         search_type=search_type,
         data_state=data_state,
+        filter_groups=filter_groups,
         no_cache=no_cache,
     )
     if not rows:
@@ -234,24 +243,35 @@ def register(mcp) -> None:
         data_state: DataState = "",
         compare_previous: Annotated[
             bool,
-            Field(description="Also fetch the equally long preceding period."),
+            Field(description="Also fetch a baseline period. False returns the current totals only."),
         ] = True,
+        compare: Compare = "previous",
+        filters: Filters = None,
         no_cache: NoCache = False,
     ) -> Overview:
-        """Site totals for a period, compared with the preceding one by default.
+        """Site totals for a period, compared with a baseline by default.
 
         Start here: it answers "is the site up or down" in one call, with the
         percentage change on every metric. `position_delta` is negative when the
-        average position improves.
+        average position improves. With a comparison, a rolling window ends on the
+        last day with final data (`data_through`), so both sides hold whole days.
         """
         site_url = check_site_url(site_url)
         search_type = check_type(type)
-        start, end, _label = dates.resolve_range(date_from, date_to, days, period)
+        mode = check_compare(compare)
+        groups = build_filter_groups(filters, "and")
         state = _data_state(data_state, [], settings)
 
         if not compare_previous:
+            start, end, _label = dates.resolve_range(date_from, date_to, days, period)
             current = await totals_for(
-                site_url, start, end, search_type=search_type, data_state=state, no_cache=no_cache
+                site_url,
+                start,
+                end,
+                search_type=search_type,
+                data_state=state,
+                filter_groups=groups,
+                no_cache=no_cache,
             )
             return Overview(
                 site_url=site_url,
@@ -261,15 +281,27 @@ def register(mcp) -> None:
                 current=current,
             )
 
-        prev_start, prev_end = dates.previous_range(start, end)
+        start, end, _label, data_through = await resolve_window(
+            site_url, date_from, date_to, days, period, search_type=search_type
+        )
+        prev_start, prev_end = dates.baseline_range(start, end, mode)
         current, previous = await asyncio.gather(
-            totals_for(site_url, start, end, search_type=search_type, data_state=state, no_cache=no_cache),
+            totals_for(
+                site_url,
+                start,
+                end,
+                search_type=search_type,
+                data_state=state,
+                filter_groups=groups,
+                no_cache=no_cache,
+            ),
             totals_for(
                 site_url,
                 prev_start,
                 prev_end,
                 search_type=search_type,
                 data_state=state,
+                filter_groups=groups,
                 no_cache=no_cache,
             ),
         )
@@ -282,6 +314,9 @@ def register(mcp) -> None:
             previous=previous,
             previous_range=[prev_start, prev_end],
             delta=build_delta(current, previous),
+            compare=mode,
+            data_through=data_through,
+            baseline_warning=dates.baseline_warning(prev_start),
         )
 
     @mcp.tool(annotations=tool_annotations("Compare two periods"))
@@ -302,6 +337,7 @@ def register(mcp) -> None:
         prev_date_to: Annotated[str, Field(description="Baseline end YYYY-MM-DD.")] = "",
         days: Days = None,
         period: Period = "",
+        compare: Compare = "previous",
         dimension: Annotated[
             str,
             Field(description="One of query, page, country, device, searchAppearance."),
@@ -311,6 +347,11 @@ def register(mcp) -> None:
             int,
             Field(description="Drop rows below this impression count in both periods."),
         ] = 0,
+        filters: Filters = None,
+        type: Annotated[  # noqa: A002 - mirrors the API field name
+            str,
+            Field(description="web, image, video, news, discover or googleNews."),
+        ] = "web",
         response_format: ResponseFormat = "tsv",
         no_cache: NoCache = False,
     ) -> str:
@@ -319,32 +360,44 @@ def register(mcp) -> None:
         Answers "what changed" without the model diffing two tables by hand. Rows
         present in only one period are kept, with zeros on the missing side; the
         biggest movers in both directions are returned, worst first. The meta counts
-        how many rows gained and how many lost clicks.
+        how many rows gained and how many lost clicks. When a side was read only up
+        to its row limit, the meta flags it: a row missing there may only be below
+        the cut.
         """
         site_url = check_site_url(site_url)
         response_format = check_format(response_format)
-        dimension_list = parse_dimensions(dimension)[:1]
-        start, end, label = dates.resolve_range(date_from, date_to, days, period)
+        dimension_list = [check_entity_dimension(dimension or "query", COMPARE_DIMENSIONS)]
+        search_type = check_type(type)
+        mode = check_compare(compare)
+        groups = build_filter_groups(filters, "and")
+        start, end, label, data_through = await resolve_window(
+            site_url, date_from, date_to, days, period, search_type=search_type
+        )
+        span = dates.span_days(start, end)
 
-        if prev_date_from or prev_date_to:
+        if prev_date_from and prev_date_to:
             prev_start, prev_end, _ = dates.resolve_range(prev_date_from, prev_date_to)
+        elif prev_date_from or prev_date_to:
+            # One end of the baseline given: keep it as long as the current period.
+            prev_start, prev_end = dates.range_of_span(prev_date_from, prev_date_to, span)
         else:
-            prev_start, prev_end = dates.previous_range(start, end)
+            prev_start, prev_end = dates.baseline_range(start, end, mode)
 
         meta = base_meta(site_url, start, end, period=label)
         limit = clamp_row_limit(row_limit, meta)
         state = _data_state("", dimension_list, settings)
 
         # 5,000 rows per side so the join sees more than the top slice before ranking.
-        fetch_limit = 5_000
         current_raw, previous_raw = await asyncio.gather(
             _search(
                 site_url,
                 start,
                 end,
                 dimension_list,
-                row_limit=fetch_limit,
+                row_limit=COMPARE_FETCH_ROWS,
+                search_type=search_type,
                 data_state=state,
+                filter_groups=groups,
                 no_cache=no_cache,
             ),
             _search(
@@ -352,8 +405,10 @@ def register(mcp) -> None:
                 prev_start,
                 prev_end,
                 dimension_list,
-                row_limit=fetch_limit,
+                row_limit=COMPARE_FETCH_ROWS,
+                search_type=search_type,
                 data_state=state,
+                filter_groups=groups,
                 no_cache=no_cache,
             ),
         )
@@ -398,6 +453,12 @@ def register(mcp) -> None:
         meta.update(
             {
                 "previous_range": f"{prev_start}..{prev_end}",
+                "compare": mode if not (prev_date_from or prev_date_to) else "custom",
+                "data_through": data_through,
+                "baseline_warning": dates.baseline_warning(prev_start),
+                "truncated_current": len(current_raw) >= COMPARE_FETCH_ROWS or None,
+                "truncated_previous": len(previous_raw) >= COMPARE_FETCH_ROWS or None,
+                "type": search_type if search_type != "web" else None,
                 "dimension": key,
                 "data_state": state,
                 "compared": len(merged),
