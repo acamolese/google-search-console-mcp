@@ -239,6 +239,8 @@ def build_summary(
         "estimated_uplift_clicks": strategy.get("executive", {}).get("total_uplift", 0),
         "alerts": strategy.get("alerts", [])[:5],
         "traffic_drops_top5": strategy.get("traffic_drops", [])[:5],
+        # Sections that could not be fetched: their emptiness means "not checked".
+        "skipped_sections": data.get("skipped_sections", []),
     }
     if report_path:
         summary["report_path"] = report_path
@@ -276,5 +278,6 @@ def render(
         charts=json.dumps(_charts(data)),
         chart_js=chart_library(),
         sections=wanted,
+        skipped_sections=sorted({item["section"] for item in data.get("skipped_sections", [])}),
         version=__version__,
     )
