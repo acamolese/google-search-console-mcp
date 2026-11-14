@@ -43,6 +43,11 @@ class Overview(BaseModel):
     previous: Totals | None = None
     previous_range: list[str] | None = None
     delta: Delta | None = None
+    # `previous` or `year`; None when no baseline was fetched.
+    compare: str | None = None
+    # The last day with final data the window was anchored to, if it was.
+    data_through: str | None = None
+    baseline_warning: str | None = None
 
 
 class InspectionResult(BaseModel):

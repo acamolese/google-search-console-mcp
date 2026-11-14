@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-google-search-console"
-version = "3.0.2"
-description = "MCP server for Google Search Console: 17 read-only tools for performance queries, quick wins, CTR gaps, keyword cannibalisation, traffic-drop diagnosis, content decay and indexing checks, plus a self-contained white-label HTML SEO audit in English or Italian. Works with Claude, Cursor, Zed and any Model Context Protocol client."
+version = "4.0.0"
+description = "MCP server for Google Search Console: 18 read-only tools for performance queries, year-over-year comparison, quick wins, CTR gaps, keyword cannibalisation, traffic-drop diagnosis, content decay, brand vs non-brand split and indexing checks, plus a self-contained white-label HTML SEO audit in English or Italian. Works with Claude, Cursor, Zed and any Model Context Protocol client."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -75,6 +75,14 @@ dev = [
     "build>=1.2",
     "pyyaml>=6.0",
 ]
+
+[tool.mypy]
+python_version = "3.10"
+
+# The mcp 2.x module path only exists on that major; _compat.py falls back to 1.x.
+[[tool.mypy.overrides]]
+module = ["mcp.server.mcpserver", "mcp.server.mcpserver.*", "google_auth_oauthlib.*"]
+ignore_missing_imports = true
 
 [project.urls]
 Homepage = "https://github.com/acamolese/google-search-console-mcp"

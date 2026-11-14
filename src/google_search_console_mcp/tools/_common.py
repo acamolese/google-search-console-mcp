@@ -10,6 +10,7 @@ from typing import Annotated, Any
 from pydantic import Field
 
 from .. import client as client_module
+from .. import dates
 from .._compat import ToolAnnotations, ToolError
 from ..client import MAX_ROW_LIMIT, GSCClient
 from ..errors import GSCError
@@ -65,7 +66,31 @@ DataState = Annotated[
     str,
     Field(description="`all` (default, includes today's partial data) or `final`."),
 ]
-RowLimit = Annotated[int, Field(description="Rows returned. Default 100, capped at 1000.")]
+RowLimit = Annotated[int, Field(description="Rows returned, capped at 1000.")]
+SearchType = Annotated[
+    str,
+    Field(description="web, image, video, news, discover or googleNews."),
+]
+Filters = Annotated[
+    list[dict] | None,
+    Field(
+        description=(
+            "Narrow the data first: list of {dimension, operator, expression}, e.g. "
+            '{"dimension":"page","operator":"contains","expression":"/blog/"}. '
+            "Dimensions: query, page, country, device, searchAppearance. Operators: equals, "
+            "notEquals, contains, notContains, includingRegex, excludingRegex. All must match."
+        )
+    ),
+]
+Compare = Annotated[
+    str,
+    Field(
+        description=(
+            "Baseline: `previous` (the equally long period before) or `year` "
+            "(the same period a year earlier; whole months map to the same months)."
+        )
+    ),
+]
 ResponseFormat = Annotated[str, Field(description="`tsv` (default, compact) or `json`.")]
 NoCache = Annotated[bool, Field(description="Bypass the response cache for this call.")]
 
@@ -83,6 +108,7 @@ def tool_errors(func):
 
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
+            client_module.start_cache_log()
             try:
                 return await func(*args, **kwargs)
             except GSCError as exc:
@@ -170,6 +196,18 @@ def build_filter_groups(filters: Sequence[dict] | None, group_type: str) -> list
                 reason="badRequest",
             )
         dimension = entry.get("dimension", "")
+        if not str(dimension).strip():
+            raise GSCError(
+                400,
+                f"Filter {entry!r} has no `dimension`. Use query, page, country, device or searchAppearance.",
+                reason="badRequest",
+            )
+        if str(dimension).strip().lower() in ("date", "hour"):
+            raise GSCError(
+                400,
+                "Dates are filtered with date_from and date_to, not with a filter.",
+                reason="badRequest",
+            )
         operator = entry.get("operator", "equals")
         expression = entry.get("expression", "")
         if operator not in VALID_OPERATORS:
@@ -186,8 +224,13 @@ def build_filter_groups(filters: Sequence[dict] | None, group_type: str) -> list
             }
         )
     group = (group_type or "and").strip().lower()
-    if group not in ("and", "or"):
-        raise GSCError(400, "filter_group_type must be 'and' or 'or'.", reason="badRequest")
+    if group != "and":
+        raise GSCError(
+            400,
+            "filter_group_type only accepts 'and': the API combines the filters of one group with AND.",
+            reason="badRequest",
+            hint="For an OR on one dimension use a single includingRegex filter, e.g. `a|b`.",
+        )
     return [{"groupType": group, "filters": parsed}]
 
 
@@ -219,3 +262,56 @@ def base_meta(site_url: str, date_from: str, date_to: str, **extra: Any) -> dict
     meta = {"site": site_url, "range": f"{date_from}..{date_to}"}
     meta.update({k: v for k, v in extra.items() if v is not None})
     return meta
+
+
+async def resolve_window(
+    site_url: str,
+    date_from: str = "",
+    date_to: str = "",
+    days: int | None = None,
+    period: str = "",
+    *,
+    search_type: str = "web",
+) -> tuple[str, str, str, str | None]:
+    """Resolve a range for a tool that compares two periods.
+
+    A rolling window with no explicit end is anchored to the last day with final
+    data, so both sides hold the same number of complete days. Returns
+    `(start, end, label, data_through)`; `data_through` is None when the range was
+    left as asked.
+    """
+    if date_from or date_to or period not in dates.ROLLING_PERIODS:
+        start, end, label = dates.resolve_range(date_from, date_to, days, period)
+        return start, end, label, None
+    today = dates.today_utc()
+    latest = await client().latest_final_date(site_url, today.isoformat(), search_type=search_type)
+    if latest is None:
+        start, end, label = dates.resolve_range(date_from, date_to, days, period)
+        return start, end, label, None
+    from datetime import date as _date
+
+    start, end, label = dates.resolve_range(days=days, period=period, today=_date.fromisoformat(latest))
+    return start, end, label, latest
+
+
+def check_compare(value: str) -> str:
+    mode = (value or "previous").strip().lower()
+    if mode not in dates.COMPARE_MODES:
+        raise GSCError(
+            400,
+            f"compare must be one of {', '.join(dates.COMPARE_MODES)}, got {value!r}.",
+            reason="badRequest",
+        )
+    return mode
+
+
+def check_entity_dimension(value: str, allowed: Sequence[str]) -> str:
+    """One dimension out of a closed list, matched case-insensitively."""
+    match = next((v for v in allowed if v.lower() == (value or "").strip().lower()), None)
+    if match is None:
+        raise GSCError(
+            400,
+            f"Unknown dimension {value!r}. Valid values here: {', '.join(allowed)}.",
+            reason="badRequest",
+        )
+    return match

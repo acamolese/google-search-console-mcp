@@ -8,21 +8,24 @@ without two copies of the logic.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
-from . import pct_change
+from . import ctr_gaps, pct_change
 from .thresholds import Thresholds
 
 Row = Mapping[str, Any]
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
-# A page-one result clicked less than this is under-performing regardless of the
-# per-site thresholds; below it the snippet is the problem, not the ranking.
-LOW_CTR_CEILING = 0.02
-WEAK_PAGE_CTR_CEILING = 0.015
 TRAFFIC_DROP_PCT = 10.0
+# Pagination parameters seen in the wild. `p` is also WordPress's default post
+# permalink (`/?p=123`), so it only counts when the same path ranks without it.
+PAGE_PARAMS = ("page", "paged", "pg")
+PATH_PAGE = re.compile(r"/page/(\d+)/?$")
+MAX_PAGE_NUMBER = 500
 
 
 def _issue(
@@ -69,13 +72,44 @@ def _query_rows(rows: Sequence[Row], limit: int = 10) -> list[dict]:
     ]
 
 
+def _page_number(url: str, known_paths: set[str]) -> int | None:
+    parts = urlsplit(url)
+    match = PATH_PAGE.search(parts.path)
+    if match:
+        return int(match.group(1))
+    params = parse_qs(parts.query)
+    for name in PAGE_PARAMS:
+        value = (params.get(name) or [""])[0]
+        if value.isdigit():
+            return int(value)
+    value = (params.get("p") or [""])[0]
+    if value.isdigit() and f"{parts.netloc}{parts.path}" in known_paths and parts.path not in ("", "/"):
+        return int(value)
+    return None
+
+
 def paginated_pages(pages: Sequence[Row], _th: Thresholds) -> dict | None:
-    hits = [row for row in pages if "?p=" in row.get("page", "") or "&p=" in row.get("page", "")]
+    """Page 2 and beyond of a listing earning search traffic.
+
+    Informational: Google indexes paginated pages on purpose and wants each one
+    to keep its own canonical. The finding is that a deep page answers queries
+    the first page or a dedicated page should be answering.
+    """
+    known_paths = set()
+    for row in pages:
+        parts = urlsplit(str(row.get("page", "")))
+        if not parts.query:
+            known_paths.add(f"{parts.netloc}{parts.path}")
+    hits = []
+    for row in pages:
+        number = _page_number(str(row.get("page", "")), known_paths)
+        if number is not None and 2 <= number <= MAX_PAGE_NUMBER:
+            hits.append(row)
     if not hits:
         return None
     return _issue(
-        "high",
-        "indexing",
+        "low",
+        "content",
         "paginated_pages",
         {"n": len(hits), "clicks": sum(row.get("clicks", 0) for row in hits)},
         {"type": "pages", "rows": _page_rows(hits)},
@@ -123,21 +157,20 @@ def mixed_hosts(pages: Sequence[Row], _th: Thresholds) -> dict | None:
 
 
 def low_ctr_queries(queries: Sequence[Row], th: Thresholds) -> dict | None:
-    hits = [
-        row
-        for row in queries
-        if row.get("impressions", 0) >= th.high_visibility_impressions
-        and row.get("ctr", 0.0) < LOW_CTR_CEILING
-        and 0 < row.get("position", 0) <= 10
-    ]
-    if not hits:
+    """First-page queries clicked far less than their position normally earns.
+
+    Same rule as the CTR-gap section, so the report has one definition of a
+    low CTR: below 60% of the expected CTR for the position.
+    """
+    gaps = ctr_gaps(queries, th, entity="query", limit=1_000)
+    if not gaps:
         return None
     return _issue(
         "medium",
         "content",
         "low_ctr_queries",
-        {"n": len(hits), "threshold": round(LOW_CTR_CEILING * 100, 1)},
-        {"type": "queries", "rows": _query_rows(hits)},
+        {"n": len(gaps), "lost": sum(item["uplift"] for item in gaps)},
+        {"type": "queries", "rows": _query_rows(gaps)},
     )
 
 
@@ -159,20 +192,16 @@ def page_two_queries(queries: Sequence[Row], th: Thresholds) -> dict | None:
 
 
 def weak_high_visibility_pages(pages: Sequence[Row], th: Thresholds) -> dict | None:
-    hits = [
-        row
-        for row in pages
-        if row.get("impressions", 0) >= th.high_visibility_impressions
-        and row.get("ctr", 0.0) < WEAK_PAGE_CTR_CEILING
-    ]
-    if not hits:
+    """Highly visible first-page pages clicked far less than their position earns."""
+    gaps = ctr_gaps(pages, th, entity="page", limit=1_000)
+    if not gaps:
         return None
     return _issue(
         "medium",
         "content",
         "weak_high_visibility_pages",
-        {"n": len(hits), "threshold": round(WEAK_PAGE_CTR_CEILING * 100, 1)},
-        {"type": "pages", "rows": _page_rows(hits)},
+        {"n": len(gaps), "lost": sum(item["uplift"] for item in gaps)},
+        {"type": "pages", "rows": _page_rows(gaps)},
     )
 
 
@@ -203,9 +232,16 @@ def sitemap_problems(sitemaps: Sequence[Mapping[str, Any]], _th: Thresholds) -> 
 
 
 def indexing_problems(indexing: Sequence[Mapping[str, Any]], _th: Thresholds) -> dict | None:
-    hits = [entry for entry in indexing if entry.get("verdict") not in ("PASS", "UNKNOWN", "")]
+    """Inspected pages Google does not index as it should.
+
+    FAIL is a real problem. NEUTRAL and PARTIAL cover deliberate exclusions too
+    (noindex, alternate pages), so on their own they are a medium finding. ERROR is
+    a failed inspection, not a verdict, and never counts.
+    """
+    hits = [entry for entry in indexing if entry.get("verdict") in ("FAIL", "NEUTRAL", "PARTIAL")]
     if not hits:
         return None
+    severity = "high" if any(entry.get("verdict") == "FAIL" for entry in hits) else "medium"
     rows = [
         {
             "url": entry.get("url", ""),
@@ -215,7 +251,7 @@ def indexing_problems(indexing: Sequence[Mapping[str, Any]], _th: Thresholds) ->
         for entry in hits
     ]
     return _issue(
-        "high",
+        severity,
         "indexing",
         "indexing_problems",
         {"n": len(hits)},
@@ -227,6 +263,7 @@ def traffic_drop(
     current: Mapping[str, Any],
     previous: Mapping[str, Any],
     _th: Thresholds,
+    baseline: str = "previous",
 ) -> dict | None:
     delta = pct_change(current.get("clicks", 0), previous.get("clicks", 0))
     if delta is None or delta > -TRAFFIC_DROP_PCT:
@@ -255,26 +292,32 @@ def traffic_drop(
             "previous": previous.get("clicks", 0),
             "current": current.get("clicks", 0),
             "impressions_pct": impressions_delta if impressions_delta is not None else 0.0,
+            "baseline": baseline,
         },
         {"type": "metric", "rows": rows},
     )
 
 
-def detect_issues(data: Mapping[str, Any], th: Thresholds) -> list[dict]:
-    """Run every rule over one collected dataset, highest severity first."""
+def detect_issues(data: Mapping[str, Any], th: Thresholds, th_pages: Thresholds | None = None) -> list[dict]:
+    """Run every rule over one collected dataset, highest severity first.
+
+    `th` comes from the query rows and `th_pages` from the page rows: a page
+    gathers many queries, so one set of percentiles cannot fit both.
+    """
     pages = data.get("pages", [])
     queries = data.get("queries", [])
+    page_th = th_pages or th
 
     found = [
-        paginated_pages(pages, th),
-        http_pages(pages, th),
-        mixed_hosts(pages, th),
+        paginated_pages(pages, page_th),
+        http_pages(pages, page_th),
+        mixed_hosts(pages, page_th),
         low_ctr_queries(queries, th),
         page_two_queries(queries, th),
-        weak_high_visibility_pages(pages, th),
+        weak_high_visibility_pages(pages, page_th),
         sitemap_problems(data.get("sitemaps", []), th),
         indexing_problems(data.get("indexing", []), th),
-        traffic_drop(data.get("current", {}), data.get("previous", {}), th),
+        traffic_drop(data.get("current", {}), data.get("previous", {}), th, data.get("compare", "previous")),
     ]
     issues = [issue for issue in found if issue]
     issues.sort(key=lambda issue: SEVERITY_ORDER.get(issue["severity"], 9))

@@ -8,6 +8,7 @@ re-requested identical data on every call. This module fixes all four.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import hashlib
 import json
 import logging
@@ -29,6 +30,23 @@ WEBMASTERS_BASE = "https://www.googleapis.com/webmasters/v3"
 INSPECTION_BASE = "https://searchconsole.googleapis.com/v1"
 
 MAX_ROW_LIMIT = 25_000
+# Google may ask a client to back off for minutes. Past this, waiting inside a tool
+# call only looks like a hang: fail with the hint instead.
+MAX_RETRY_AFTER_SECONDS = 60.0
+# How far back to look for the last day with final data. Google finalises data with
+# a delay of a few days; ten covers it with room to spare.
+FRESHNESS_LOOKBACK_DAYS = 10
+
+# Cache outcomes of the requests made by the current tool call. Tools fan out
+# requests with asyncio.gather, and the tasks share the list set by the caller.
+_cache_log: contextvars.ContextVar[list[str] | None] = contextvars.ContextVar("gsc_cache_log", default=None)
+
+
+def start_cache_log() -> list[str]:
+    """Begin collecting cache outcomes for one tool call."""
+    log: list[str] = []
+    _cache_log.set(log)
+    return log
 
 
 def encode_site(site_url: str) -> str:
@@ -106,7 +124,25 @@ class GSCClient:
         self._inspect_semaphore = asyncio.Semaphore(self._settings.inspect_concurrency)
         self.requests = 0
         self.retries = 0
-        self.last_cache_state = "miss"
+        self._last_cache_state = "miss"
+
+    @property
+    def last_cache_state(self) -> str:
+        """`hit`, `miss` or `mixed` across the requests of the current tool call.
+
+        Outside a tool call it falls back to the outcome of the latest request.
+        """
+        log = _cache_log.get()
+        if not log:
+            return self._last_cache_state
+        states = set(log)
+        return states.pop() if len(states) == 1 else "mixed"
+
+    def _record_cache(self, state: str) -> None:
+        self._last_cache_state = state
+        log = _cache_log.get()
+        if log is not None:
+            log.append(state)
 
     # -- stats --------------------------------------------------------------
 
@@ -146,9 +182,9 @@ class GSCClient:
         if not no_cache and ttl > 0:
             cached = self._cache.get(key)
             if cached is not None:
-                self.last_cache_state = "hit"
+                self._record_cache("hit")
                 return cached
-        self.last_cache_state = "miss"
+        self._record_cache("miss")
 
         data = await self._request_with_retries(method, url, body)
 
@@ -175,6 +211,12 @@ class GSCClient:
                 if not last_error.retryable:
                     raise last_error
                 retry_after = _retry_after_seconds(response)
+                if retry_after is not None and retry_after > MAX_RETRY_AFTER_SECONDS:
+                    last_error.hint = (
+                        f"Google asked to wait {int(retry_after)} seconds before retrying. "
+                        "Try again later, or lower the number of parallel calls."
+                    )
+                    raise last_error
                 if attempt < attempts:
                     self.retries += 1
                     await asyncio.sleep(self._backoff(attempt, retry_after))
@@ -206,6 +248,34 @@ class GSCClient:
     async def search_analytics(self, site_url: str, body: dict, *, no_cache: bool = False) -> dict:
         url = f"{WEBMASTERS_BASE}/sites/{encode_site(site_url)}/searchAnalytics/query"
         return await self._request("POST", url, body, no_cache=no_cache)
+
+    async def latest_final_date(self, site_url: str, today: str, *, search_type: str = "web") -> str | None:
+        """The last day for which Search Console has final data, or None.
+
+        The most recent days are partial for a while, so a window that ends today
+        holds fewer complete days than the window it is compared with. Answered
+        from the cache like any other call.
+        """
+        from datetime import date, timedelta
+
+        end = date.fromisoformat(today)
+        body = {
+            "startDate": (end - timedelta(days=FRESHNESS_LOOKBACK_DAYS)).isoformat(),
+            "endDate": end.isoformat(),
+            "dimensions": ["date"],
+            "type": search_type,
+            "dataState": "final",
+            "rowLimit": FRESHNESS_LOOKBACK_DAYS + 1,
+        }
+        data = await self.search_analytics(site_url, body)
+        found = []
+        for row in data.get("rows", []):
+            keys = row.get("keys") or []
+            try:
+                found.append(date.fromisoformat(str(keys[0])))
+            except (IndexError, ValueError):
+                continue
+        return max(found).isoformat() if found else None
 
     async def list_sitemaps(self, site_url: str, *, no_cache: bool = False) -> list[dict]:
         url = f"{WEBMASTERS_BASE}/sites/{encode_site(site_url)}/sitemaps"

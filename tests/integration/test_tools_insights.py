@@ -130,7 +130,7 @@ async def test_traffic_drops_compares_against_the_previous_window(server, wired_
     assert meta["previous_range"] == "2026-06-27..2026-07-24"
     rows = body_of(text)
     assert rows[0][0] == "https://example.com/a"
-    assert rows[0][11] == "demand_decline"
+    assert rows[0][11] == "fewer_impressions"
 
 
 @respx.mock
@@ -154,12 +154,16 @@ async def test_content_decay_reads_one_query_per_month(server, wired_client):
 
     text, _ = await call_tool(server, "gsc_content_decay", {"site_url": SITE, "months": 6})
 
+    # Six whole months: August is still in progress on the 21st and is left out.
     assert route.call_count == 6
     rows = body_of(text)
     assert rows[0][0] == "https://example.com/a"
     assert rows[0][2] == "100"  # peak clicks
-    assert rows[0][4] == "30"  # last month
-    assert meta_of(text)["months"] == "6"
+    assert rows[0][4] == "40"  # last complete month
+    meta = meta_of(text)
+    assert meta["months"] == "6"
+    assert meta["last_month"] == "2026-07"
+    assert meta["partial_month_excluded"] == "true"
 
 
 @respx.mock
@@ -186,7 +190,8 @@ async def test_alerts_reads_queries_and_pages_for_both_windows(server, wired_cli
 
     text, _ = await call_tool(server, "gsc_alerts", {"site_url": SITE, "window_days": 7})
 
-    assert route.call_count == 4
+    # Four data calls plus the lookup of the last day with final data.
+    assert route.call_count == 5
     assert meta_of(text)["previous_range"] == "2026-08-08..2026-08-14"
     kinds = {row[1] for row in body_of(text)}
     assert "position_loss" in kinds

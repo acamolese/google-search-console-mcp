@@ -34,7 +34,10 @@
     "questions": "Featured snippet opportunities",
     "devices": "Mobile and desktop gap",
     "geo": "Geographic opportunities",
-    "roadmap": "30 / 60 / 90 day roadmap"
+    "roadmap": "30 / 60 / 90 day roadmap",
+    "traffic_drops": "Pages that lost clicks",
+    "content_decay": "Pages in steady decline",
+    "method": "How to read this report"
   },
   "columns": {
     "query": "Query",
@@ -66,7 +69,12 @@
     "effort": "Effort",
     "action": "Action",
     "diagnosis": "Likely cause",
-    "severity": "Severity"
+    "severity": "Severity",
+    "date": "Date",
+    "peak_month": "Peak month",
+    "peak_clicks": "Peak clicks",
+    "last_month": "Last month",
+    "last_clicks": "Last clicks"
   },
   "severity": {
     "high": "High",
@@ -91,34 +99,36 @@
     "opportunity": "Opportunity"
   },
   "diagnosis": {
-    "disappeared": "The page stopped receiving clicks entirely",
+    "disappeared": "The page no longer appears in search results",
     "ranking_loss": "Average position got worse",
-    "demand_decline": "Fewer impressions at a stable position: demand fell",
     "ctr_collapse": "Same impressions and position, far fewer clicks: the snippet stopped working",
-    "mixed": "Several factors changed at once"
+    "mixed": "Several factors changed at once",
+    "fewer_impressions": "Fewer impressions at the same position: lower demand, or the page ranks for fewer queries"
   },
   "executive": {
     "heading": "Executive summary",
-    "trend_up": "Clicks are up {pct}% against the previous period.",
-    "trend_down": "Clicks are down {pct}% against the previous period.",
-    "trend_flat": "Clicks are stable against the previous period.",
-    "brand_share": "{pct}% of clicks come from brand queries; {non_brand_pct}% from non-brand.",
+    "trend_up": "Clicks grew {pct}% against {baseline}.",
+    "trend_down": "Clicks fell {pct}% against {baseline}.",
+    "trend_flat": "Clicks are stable against {baseline}.",
+    "brand_share": "{pct}% of all clicks come from brand queries and {non_brand_pct}% from non-brand queries.",
     "issue_count": "{high} high-severity and {medium} medium-severity issues detected.",
-    "uplift": "The opportunities below add up to an estimated +{clicks} clicks.",
-    "quick_win_count": "{n} quick wins are ready to start."
+    "uplift": "If the top {n} page-two queries reached position 3, they would bring an estimated +{clicks} clicks over a period like this one. An order of magnitude, not a forecast.",
+    "quick_win_count": "{n} quick wins are ready to start.",
+    "brand_share_anonymized": "{pct}% of all clicks come from brand queries, {non_brand_pct}% from non-brand queries, and {anonymized_pct}% from queries Google does not disclose.",
+    "brand_share_top": "Among the top {n} queries, {pct}% of clicks are brand and {non_brand_pct}% non-brand.",
+    "uplift_one": "If the top page-two query reached position 3, it would bring an estimated +{clicks} clicks over a period like this one. An order of magnitude, not a forecast."
   },
   "issue": {
     "paginated_pages": {
-      "title": "{n} paginated pages are indexed",
-      "title_one": "One paginated page is indexed",
-      "description": "Paginated URLs collect {clicks} clicks and compete with the main category pages. Google may pick a canonical other than the one you declare.",
-      "description_one": "A paginated URL collects {clicks} clicks and competes with the main category page. Google may pick a canonical other than the one you declare.",
+      "title": "{n} deep listing pages earn search traffic",
+      "title_one": "One deep listing page earns search traffic",
+      "description": "Page 2 and later of a listing collect {clicks} clicks. Google indexes paginated pages on purpose; the point is that a deep page is answering queries the first page, or a dedicated page, should be answering.",
+      "description_one": "Page 2 or later of a listing collects {clicks} clicks. Google indexes paginated pages on purpose; the point is that a deep page is answering queries the first page, or a dedicated page, should be answering.",
       "strategy": [
-        "Add a rel=\"canonical\" on every paginated URL pointing at page one of the category",
-        "Use URL Inspection to confirm Google honours the declared canonical",
-        "Alternatively, use infinite scroll with history.pushState so the main URL stays in place",
-        "Check that paginated URLs are not listed in the XML sitemap",
-        "If pages 2+ carry unique content worth ranking, give them differentiated titles and descriptions"
+        "Keep a self-referencing canonical on every paginated page: pointing them all at page one hides the items they list",
+        "Look at which queries land on the deep pages and whether a category, filter or guide page should own them",
+        "Link the products or articles that attract those queries from the first page or from a dedicated page",
+        "Give paginated pages plain, distinct titles (\"Page 2\") so they do not compete with page one"
       ]
     },
     "http_pages": {
@@ -144,9 +154,9 @@
       ]
     },
     "low_ctr_queries": {
-      "title": "{n} queries rank on page one but are barely clicked",
-      "title_one": "One query ranks on page one but is barely clicked",
-      "description": "These queries sit in the top 10 with a CTR below {threshold}%. The ranking is there; the snippet is not converting. Low effort, high return.",
+      "title": "{n} first-page queries earn far fewer clicks than their position",
+      "title_one": "One first-page query earns far fewer clicks than its position",
+      "description": "These queries rank in the top 10 but earn less than 60% of the CTR their position normally gets: about {lost} clicks are left on the table. The ranking is there; the snippet is not converting.",
       "strategy": [
         "Rewrite the title tag around the differentiator that matters to this audience",
         "Rewrite the meta description with a clear call to action, under 155 characters",
@@ -154,7 +164,8 @@
         "Test title variants that signal freshness where the topic warrants it",
         "Avoid generic \"Category | Brand\" titles in favour of benefit-led phrasing",
         "Track CTR weekly after each change and iterate"
-      ]
+      ],
+      "description_one": "This query ranks in the top 10 but earns less than 60% of the CTR its position normally gets: about {lost} clicks are left on the table. The ranking is there; the snippet is not converting."
     },
     "page_two_queries": {
       "title": "{n} queries sit in positions 11-20 with real volume",
@@ -170,16 +181,17 @@
       ]
     },
     "weak_high_visibility_pages": {
-      "title": "{n} high-visibility pages convert impressions poorly",
-      "title_one": "One high-visibility page converts impressions poorly",
-      "description": "Pages with many impressions and very few clicks. Either the snippet does not match the intent behind the query, or the position is too low to be seen.",
+      "title": "{n} high-visibility pages earn far fewer clicks than their position",
+      "title_one": "One high-visibility page earns far fewer clicks than its position",
+      "description": "Pages with many first-page impressions and less than 60% of the expected CTR: about {lost} clicks are left on the table. Either the snippet does not match the intent behind the queries, or rich results above it take the clicks.",
       "strategy": [
         "Review title and meta description page by page",
         "Check that the content above the fold answers the search intent",
         "Review Core Web Vitals: a slow LCP costs mobile clicks",
         "Check whether the page competes with another page of the site for the same query",
         "Add the structured data that fits the page type"
-      ]
+      ],
+      "description_one": "A page with many first-page impressions and less than 60% of the expected CTR: about {lost} clicks are left on the table. Either the snippet does not match the intent behind the queries, or rich results above it take the clicks."
     },
     "sitemap_problems": {
       "title": "{n} sitemaps report problems",
@@ -195,9 +207,9 @@
       ]
     },
     "indexing_problems": {
-      "title": "{n} top pages have indexing problems",
-      "title_one": "One top page has an indexing problem",
-      "description": "Pages among the site's most important are not in a PASS state. Every one of them is traffic at risk.",
+      "title": "{n} inspected pages are not indexed as they should be",
+      "title_one": "One inspected page is not indexed as it should be",
+      "description": "The pages that lost the most clicks, and then the top pages, were run through URL Inspection. These are not in an indexed state. Some exclusions are deliberate (noindex, alternate pages): check each one against its coverage state.",
       "strategy": [
         "Open URL Inspection for each page to read the exact coverage state",
         "\"Duplicate, Google chose different canonical\": check the declared canonical and whether the content is genuinely unique",
@@ -208,7 +220,7 @@
       ]
     },
     "traffic_drop": {
-      "title": "Clicks fell {pct}% against the previous period",
+      "title": "Clicks fell {pct}% against {baseline}",
       "description": "Clicks went from {previous} to {current}. Impressions changed by {impressions_pct}%. This needs investigating before anything else on this list.",
       "strategy": [
         "Compare the top 20 queries and pages across both periods to isolate where the loss happened",
@@ -231,20 +243,16 @@
     },
     "fix_cannibalization": {
       "title": "Resolve cannibalisation between pages",
-      "action": "\"{query}\" is split across {pages} pages. Consolidate the canonicals and commit to one target page per query."
+      "action": "\"{query}\" is split across {pages} pages and none of them holds it firmly. Choose the page that should answer it, merge or differentiate the others, and point internal links at the chosen one."
     },
     "force_https": {
       "title": "Force HTTPS everywhere with 301 redirects",
       "action": "Configure the 301 from HTTP to HTTPS at the server level, enable HSTS, update the sitemap and resubmit it."
     },
-    "canonicalize_pagination": {
-      "title": "Canonicalise the paginated pages",
-      "action": "Add rel=canonical from the paginated URLs to page one of the category to consolidate authority."
-    },
     "answer_questions": {
       "title": "Target featured snippets and People Also Ask",
-      "action": "{n} question queries already rank in the top 15. Add structured FAQ sections with short answers of 40 to 60 words and FAQPage markup.",
-      "action_one": "One question query already ranks in the top 15. Add a structured FAQ section with a short answer of 40 to 60 words and FAQPage markup."
+      "action": "{n} question queries already rank in the top 15. Answer each one directly near the top of the target page, in 40-60 words, under a heading that repeats the question.",
+      "action_one": "One question query already ranks in the top 15. Answer it directly near the top of the target page, in 40-60 words, under a heading that repeats the question."
     },
     "reduce_brand_dependency": {
       "title": "Reduce the dependency on brand traffic",
@@ -253,6 +261,10 @@
     "build_topic_hub": {
       "title": "Build a content hub around \"{theme}\"",
       "action": "\"{theme}\" concentrates {clicks} clicks across {queries} queries. Create a pillar page and a cluster of supporting content."
+    },
+    "review_pagination": {
+      "title": "Find out why deep listing pages rank",
+      "action": "Check which queries land on page 2 and later, and give the strongest ones a page of their own or a link from page one. Keep each paginated page's own canonical."
     }
   },
   "roadmap": {
@@ -266,8 +278,12 @@
     "content_hubs": "Build content hubs around the main themes: {themes}",
     "expand_non_brand": "Widen the funnel with informational content to grow non-brand traffic",
     "localize": "Evaluate localisation for the emerging markets: {countries}",
-    "backlinks": "Audit backlinks and plan digital PR to grow domain authority",
-    "competitors": "Audit competitors to find the content gaps worth filling"
+    "backlinks": "{n} queries are stuck on page two: review the backlink profile and plan digital PR for the pages they land on",
+    "competitors": "Clicks are down: compare the results that now outrank the site on the lost queries",
+    "monitor": "Re-run this report in 30 days to measure the effect of the work above",
+    "optimize_page_two_one": "Optimise the target page for the query in positions 11-20",
+    "fix_cannibalization_one": "Resolve the cannibalisation on the most valuable query",
+    "backlinks_one": "One query is stuck on page two: review the backlink profile and plan digital PR for the page it lands on"
   },
   "device": {
     "mobile": "Mobile",
@@ -280,7 +296,9 @@
   "skipped": {
     "heading": "Some sections could not be checked",
     "sitemaps": "Sitemaps were not checked: the Search Console API call failed. An empty sitemap section does not mean there are no sitemap problems.",
-    "content_decay": "The month-by-month page history could not be fetched in full: content decay was not checked."
+    "content_decay": "The month-by-month page history could not be fetched in full: content decay was not checked.",
+    "indexing": "URL Inspection failed for some pages: those pages were not checked and are not counted as indexing problems.",
+    "brand": "Brand and non-brand totals could not be fetched over every query: the split shown is computed on the top queries only."
   },
   "empty": {
     "no_issues": "No issues matched the thresholds for this property and period.",
@@ -346,5 +364,30 @@
     "can",
     "does",
     "is"
-  ]
+  ],
+  "compare": {
+    "previous": "the previous period",
+    "year": "the same period last year"
+  },
+  "verdict": {
+    "PASS": "Indexed",
+    "PARTIAL": "Partially valid",
+    "FAIL": "Not indexed",
+    "NEUTRAL": "Excluded",
+    "UNKNOWN": "Unknown"
+  },
+  "truncated": {
+    "pages": "The site has more pages than the {n} read for this report: pages below that cut are not listed as lost."
+  },
+  "method": {
+    "thresholds": "Thresholds computed on this property: a query counts from {q_impr} impressions, a page from {p_impr}; high visibility starts at {q_high} impressions for a query and {p_high} for a page.",
+    "ctr_gap": "A result is below its expected CTR when it earns less than 60% of what its position normally earns. The curve used:",
+    "brand": "Brand terms: {terms}.",
+    "brand_guess": "Brand terms guessed from the domain ({terms}): pass the real ones for a reliable split.",
+    "decay": "Steady decline: clicks fell in each of the last three complete months.",
+    "position": "Position",
+    "expected": "Expected CTR",
+    "comparison_previous": "Period {from} – {to}, compared with the previous period of the same length: {prev_from} – {prev_to}.",
+    "comparison_year": "Period {from} – {to}, compared with the same period last year: {prev_from} – {prev_to}."
+  }
 }

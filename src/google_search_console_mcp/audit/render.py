@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -30,6 +31,7 @@ ALL_SECTIONS = (
     "indexing",
     "strategy",
     "roadmap",
+    "method",
 )
 
 
@@ -116,6 +118,8 @@ def translate_issues(issues: list[dict], translator: Translator) -> list[dict]:
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 continue
             display[name] = translator.number(value, 1 if isinstance(value, float) else 0)
+        if "baseline" in params:
+            display["baseline"] = translator.t(f"compare.{params['baseline']}")
         count = params.get(issue.get("plural_on", "n"))
         count = count if isinstance(count, (int, float)) and not isinstance(count, bool) else 2
         out.append(
@@ -135,7 +139,7 @@ def translate_quick_wins(wins: list[dict], translator: Translator) -> list[dict]
     out = []
     for win in wins:
         params = dict(win.get("params", {}))
-        display = {}
+        display: dict[str, Any] = {}
         for name, value in params.items():
             if name == "ctr" or name == "expected_ctr":
                 display[name] = translator.pct((value or 0) * 100, 2)
@@ -179,7 +183,8 @@ def translate_roadmap(roadmap: dict, issues: list[dict], wins: list[dict], trans
                     name: translator.number(value) if isinstance(value, int) else value
                     for name, value in params.items()
                 }
-                lines.append(translator.t(f"roadmap.{key}", **display))
+                count = params.get("n", 2)
+                lines.append(translator.plural(f"roadmap.{key}", count, **display))
         out[horizon] = lines
     return out
 
@@ -225,7 +230,12 @@ def build_summary(
         "brand": {
             "terms": strategy.get("brand", {}).get("brand_terms", []),
             "source": strategy.get("brand", {}).get("brand_terms_source", ""),
-            "brand_clicks_pct": strategy.get("brand", {}).get("brand_clicks_pct", 0.0),
+            "brand_pct": strategy.get("executive", {}).get("brand_pct", 0.0),
+            "non_brand_pct": strategy.get("executive", {}).get("non_brand_pct", 0.0),
+            "anonymized_pct": strategy.get("executive", {}).get("anonymized_pct"),
+            # all_queries: shares of the site total, filtered server-side.
+            # top_queries: shares of the top-query slice only.
+            "basis": strategy.get("executive", {}).get("brand_basis", "top_queries"),
         },
         "quick_wins_top5": [
             {
@@ -237,8 +247,15 @@ def build_summary(
             for win in strategy.get("quick_wins", [])[:5]
         ],
         "estimated_uplift_clicks": strategy.get("executive", {}).get("total_uplift", 0),
+        "estimated_uplift_basis": (
+            f"top {strategy.get('executive', {}).get('uplift_queries', 0)} "
+            "page-two queries reaching position 3"
+        ),
         "alerts": strategy.get("alerts", [])[:5],
         "traffic_drops_top5": strategy.get("traffic_drops", [])[:5],
+        "content_decay_top5": strategy.get("content_decay", [])[:5],
+        "compare": data.get("compare", "previous"),
+        "truncated": {k: v for k, v in (data.get("truncated") or {}).items() if v},
         # Sections that could not be fetched: their emptiness means "not checked".
         "skipped_sections": data.get("skipped_sections", []),
     }
@@ -279,5 +296,8 @@ def render(
         chart_js=chart_library(),
         sections=wanted,
         skipped_sections=sorted({item["section"] for item in data.get("skipped_sections", [])}),
+        baseline=translator.t(f"compare.{data.get('compare', 'previous')}"),
+        truncated=data.get("truncated") or {},
+        page_rows=len(data.get("pages", [])),
         version=__version__,
     )

@@ -52,11 +52,19 @@ def test_overrides_always_win():
     assert overridden.min_clicks > 10
 
 
-def test_a_custom_ctr_curve_replaces_the_default():
+def test_a_partial_ctr_curve_keeps_the_default_for_the_other_positions():
     custom = Thresholds().with_overrides({"ctr_curve": {"1": 0.5, "2": 0.3}})
     assert custom.expected_ctr(1) == 0.5
     assert custom.expected_ctr(2) == 0.3
-    assert custom.expected_ctr(3) == CTR_BEYOND_FIRST_PAGE
+    assert custom.expected_ctr(3) == DEFAULT_CTR_CURVE[3]
+    assert custom.expected_ctr(25) == CTR_BEYOND_FIRST_PAGE
+
+
+def test_an_unknown_threshold_key_is_rejected():
+    from google_search_console_mcp.errors import GSCError
+
+    with pytest.raises(GSCError, match="min_impresions"):
+        Thresholds().with_overrides({"min_impresions": 10})
 
 
 def test_empty_overrides_change_nothing():

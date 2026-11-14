@@ -130,7 +130,7 @@ def format_number(value: float, language: str = DEFAULT_LANGUAGE, decimals: int 
     text = f"{value:,.{decimals}f}"
     if language in COMMA_DECIMAL_LANGUAGES:
         # Swap , and . in one pass.
-        text = text.translate(str.maketrans({",": ".", ".": ","}))
+        text = text.translate(str.maketrans(",.", ".,"))
     return text
 
 

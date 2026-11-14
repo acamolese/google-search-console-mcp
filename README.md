@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/mcp-google-search-console)](https://pypi.org/project/mcp-google-search-console/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Seventeen read-only tools over the Google Search Console API, plus a deterministic
+Eighteen read-only tools over the Google Search Console API, plus a deterministic
 white-label HTML audit report an agency can put its own name on and send to a
 client, in English or Italian.
 
@@ -20,6 +20,38 @@ Regenerate that report from committed synthetic data, with no credentials:
 ```bash
 python scripts/render_sample_report.py --lang en --open
 ```
+
+## What's new in 4.0
+
+4.0 is about trust: every number the server reports now says what it is based on,
+and nothing incomplete is presented as a finding.
+
+- **Comparisons hold whole days.** Search Console's latest days are partial for a
+  while, so a 7-day window ending today used to start 15-20% down against the week
+  before. Comparison tools now end rolling windows on the last day with final data
+  and report it as `data_through`.
+- **Year over year.** `compare="year"` on the overview, period comparison, traffic
+  drops, alerts and the audit. Whole months map to the same months last year;
+  other ranges move back 52 weeks so weekdays line up.
+- **Filters everywhere.** The analysis tools and `gsc_compare_periods` accept the
+  same `filters` and `type` as `gsc_query`: analyse `/blog/`, one country, mobile
+  only, or Discover.
+- **Brand vs non-brand, done properly.** The new `gsc_brand_split` tool, and the
+  audit, compute the split over every query with server-side regex filters and
+  report the clicks Google does not disclose as a third share. Brand terms match
+  whole words only.
+- **No more false alarms.** Content decay compares complete months only. A page
+  below a row limit is no longer reported as lost. A failed URL Inspection is no
+  longer an indexing problem. Cannibalisation leaves out brand queries and queries
+  one page clearly owns.
+- **A sounder report.** One definition of a low CTR, thresholds per kind of row,
+  inspection of the pages that lost clicks, a "pages in steady decline" section, a
+  "how to read this report" section, translated verdicts, darker default colours
+  and accessible charts and tables. The pagination advice no longer recommends
+  canonicalising to page one.
+
+Upgrading from 3.x: see the breaking changes at the top of the
+[changelog](https://github.com/acamolese/google-search-console-mcp/blob/main/CHANGELOG.md#400---2026-11-14).
 
 ## Install
 
@@ -147,12 +179,13 @@ reports.
 | `gsc_sites` | Which properties can this account read, and in what exact format |
 | `gsc_site_details` | Permission level and type for one property |
 | `gsc_query` | The Search Analytics report, with filters, dimensions and pagination |
-| `gsc_performance_overview` | Is the site up or down, against the previous period |
+| `gsc_performance_overview` | Is the site up or down, against the previous period or last year |
 | `gsc_compare_periods` | What changed between two periods, ranked by click delta |
 | `gsc_quick_wins` | Queries close enough to the top that a push would pay off |
 | `gsc_ctr_gaps` | Pages that rank but are not clicked |
 | `gsc_cannibalization` | Queries where several pages compete against each other |
 | `gsc_traffic_drops` | Pages that lost clicks, with a likely cause for each |
+| `gsc_brand_split` | Brand, non-brand and undisclosed clicks, month by month |
 | `gsc_content_decay` | Pages sliding down month after month |
 | `gsc_alerts` | What moved sharply enough to be worth a message today |
 | `gsc_portfolio` | Every property at a glance, worst first |
@@ -170,14 +203,15 @@ Three prompts wrap the workflows that repeat: `gsc_weekly_report`,
 | | Here | Typical GSC MCP server |
 |---|---|---|
 | Client-ready report | Self-contained HTML, English or Italian, white-label | none |
-| Analysis | Cannibalisation, CTR gaps, decay, drop diagnosis, run server-side | raw rows, analysed by the model |
+| Analysis | Cannibalisation, CTR gaps, decay, drop diagnosis, brand split, run server-side | raw rows, analysed by the model |
+| Honesty | Truncation, skipped sections and anchors declared in every response | silent gaps |
 | Thresholds | Adapt to the size of the property | fixed, or none |
 | Dates | `period="last_month"`, `days=28`, resolved server-side | explicit dates only |
-| Freshness | `dataState=all` by default, matching the UI | `final` only |
+| Freshness | `gsc_query` matches the UI; comparisons end on the last day with final data | windows that end on partial days |
 | Auth | OAuth, service account, ADC | OAuth only |
 | Output | TSV by default, roughly a third of the tokens of pretty JSON | `json.dumps(indent=2)` |
 | Errors | Google's reason plus what to do about it | bare HTTP status |
-| Tests | 280+, on both `mcp` majors, three operating systems | usually none |
+| Tests | 350+, on both `mcp` majors, three operating systems | usually none |
 
 ## Report customisation
 

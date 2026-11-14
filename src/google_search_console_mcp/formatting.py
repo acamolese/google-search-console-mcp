@@ -46,7 +46,15 @@ def _cell(value: Any) -> str:
 
 def format_meta(meta: Mapping[str, Any]) -> str:
     """The `# meta key=value ...` header line."""
-    parts = [f"{key}={_cell(value)}" for key, value in meta.items() if value is not None and value != ""]
+    parts = []
+    for key, value in meta.items():
+        if value is None or value == "":
+            continue
+        text = _cell(value)
+        # Pairs are space-separated, so a value with a space travels quoted.
+        if " " in text:
+            text = json.dumps(text, ensure_ascii=False)
+        parts.append(f"{key}={text}")
     return "# meta " + " ".join(parts)
 
 
