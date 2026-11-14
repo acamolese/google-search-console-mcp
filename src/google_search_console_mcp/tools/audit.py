@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 from pydantic import Field
 
@@ -171,8 +171,10 @@ def register(mcp) -> None:
                     type="resource",
                     # camelCase on purpose: it is the field name on mcp 1.x and the
                     # accepted alias on 2.x, so one spelling works on both.
-                    resource=TextResourceContents(
-                        uri=result.resource_uri,  # type: ignore[arg-type]  # pydantic coerces str
+                    # Typed through Any: the field names and types differ between the two
+                    # SDK majors, and pydantic coerces the str URI on both.
+                    resource=cast(Any, TextResourceContents)(
+                        uri=result.resource_uri,
                         mimeType="text/html",
                         text=result.html,
                     ),
